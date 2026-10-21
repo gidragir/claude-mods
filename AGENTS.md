@@ -77,6 +77,7 @@ Create a new mod only via `pnpm new <mod> "description"` (template `templates/mo
 3. `pnpm lint` with no errors.
 4. Live check — in a session with the mods connected: saving reloads the mod after a turn. Load and hook errors appear as a dim line in the transcript; in full, in `claude --debug`.
 5. Before releasing a mod: bump `version` in plugin.json, run `pnpm marketplace`, commit and push to `gidragir/claude-mods`, then tag `vX.Y.Z` and publish with `gh release create` (the repo is public and is the marketplace: users install with `/plugin marketplace add gidragir/claude-mods`, then `/plugin install <mod>@claude-mods`).
+6. After cloning, run `pnpm types:sync` before `pnpm check` (load any mod once so the engine writes the declarations); `types/engine/` is not committed.
 
 ## Conventions
 
