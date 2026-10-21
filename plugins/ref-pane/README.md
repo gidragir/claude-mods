@@ -2,6 +2,8 @@
 
 A pane of references like RV-1 / FB-2 / T-3 from the model reply: a click shows the ticket artifact section (`features/<TICKET>/…`) right in the session.
 
+![Refs pane showing review, feedback, task and ADR references](docs/refs-pane.png)
+
 ## Install
 
 ```
