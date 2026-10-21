@@ -11,12 +11,13 @@
 // Additive only: installed plugins (enabledPlugins), marketplaces and entries that point outside
 // this repo are never touched. A mod whose name an installed, enabled plugin already uses is
 // skipped (it would load twice); --force links it anyway.
-import { copyFileSync, existsSync, readFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { delimiter, join, resolve } from 'node:path'
 import {
   c,
   externalPlugins,
+  IS_WIN,
   isInside,
   listMods,
   modDir,
@@ -111,6 +112,94 @@ function show(t) {
   if (unlinked.length > 0) console.log(c.yellow(`  not linked: ${unlinked.join(', ')}`))
 }
 
+const GEMINI_CONFIG = join(homedir(), '.gemini', 'config')
+const GEMINI_PLUGINS = join(GEMINI_CONFIG, 'plugins')
+const GEMINI_SIDECARS = join(GEMINI_CONFIG, 'sidecars')
+
+function geminiTarget(p) {
+  try {
+    return readlinkSync(p)
+  } catch {
+    return null
+  }
+}
+
+function showGemini() {
+  console.log(c.bold('~/.gemini/config (Google Antigravity)'))
+  if (!existsSync(GEMINI_CONFIG)) {
+    console.log(c.dim('  (config dir does not exist)'))
+    return
+  }
+  const allMods = listMods()
+  console.log(c.cyan('  Plugins:'))
+  for (const mod of allMods) {
+    const linkPath = join(GEMINI_PLUGINS, mod)
+    const target = geminiTarget(linkPath)
+    if (target && isInside(target, PLUGINS)) {
+      console.log(`    ${c.green('●')} ${mod} → ${target}`)
+    } else {
+      console.log(`    ${c.dim('○')} ${mod} (not linked)`)
+    }
+  }
+  console.log(c.cyan('  Sidecars:'))
+  for (const mod of allMods) {
+    const sidecarDir = join(modDir(mod), 'sidecars', mod)
+    if (!existsSync(sidecarDir)) continue
+    const linkPath = join(GEMINI_SIDECARS, mod)
+    const target = geminiTarget(linkPath)
+    if (target && isInside(target, PLUGINS)) {
+      console.log(`    ${c.green('●')} ${mod} → ${target}`)
+    } else {
+      console.log(`    ${c.dim('○')} ${mod} (not linked)`)
+    }
+  }
+}
+
+if (flags.gemini || flags.antigravity) {
+  const mods = listMods(rest)
+  const isJunction = IS_WIN ? 'junction' : 'dir'
+  if (flags.off) {
+    for (const mod of mods) {
+      const pLink = join(GEMINI_PLUGINS, mod)
+      if (existsSync(pLink) && isInside(geminiTarget(pLink) || '', PLUGINS)) {
+        rmSync(pLink, { recursive: true, force: true })
+        console.log(c.green(`✔ unlinked plugin ${mod}`))
+      }
+      const sLink = join(GEMINI_SIDECARS, mod)
+      if (existsSync(sLink) && isInside(geminiTarget(sLink) || '', PLUGINS)) {
+        rmSync(sLink, { recursive: true, force: true })
+        console.log(c.green(`✔ unlinked sidecar ${mod}`))
+      }
+    }
+  } else {
+    mkdirSync(GEMINI_PLUGINS, { recursive: true })
+    mkdirSync(GEMINI_SIDECARS, { recursive: true })
+    for (const mod of mods) {
+      const pTarget = modDir(mod)
+      const pLink = join(GEMINI_PLUGINS, mod)
+      if (!existsSync(pLink)) {
+        symlinkSync(pTarget, pLink, isJunction)
+        console.log(c.green(`✔ linked plugin ${mod} → ${pLink}`))
+      } else {
+        console.log(c.dim(`plugin ${mod} already linked`))
+      }
+
+      const sTarget = join(pTarget, 'sidecars', mod)
+      if (existsSync(sTarget)) {
+        const sLink = join(GEMINI_SIDECARS, mod)
+        if (!existsSync(sLink)) {
+          symlinkSync(sTarget, sLink, isJunction)
+          console.log(c.green(`✔ linked sidecar ${mod} → ${sLink}`))
+        } else {
+          console.log(c.dim(`sidecar ${mod} already linked`))
+        }
+      }
+    }
+  }
+  showGemini()
+  process.exit(0)
+}
+
 if (flags.status) {
   const external = externalPlugins()
   console.log(c.bold('Loaded besides this repo (untouched)'))
@@ -118,6 +207,7 @@ if (flags.status) {
     console.log(`  ${c.dim('○')} ${p.source.includes('@') ? p.source : `${p.name} (${p.source})`}`)
   show(mise)
   show(desktop)
+  showGemini()
   const clashes = nameClashes(listMods(), external)
   if (clashes.length > 0) {
     console.log(c.bold('Name clashes'))
