@@ -83,5 +83,5 @@ Create a new mod only via `pnpm new <mod> "description"` (template `templates/mo
 
 - Code, identifiers, comments, README files, and user-facing messages are all in English.
 - Formatting — Biome (single quotes, no semicolons, width 140); do not argue with the formatter.
-- The repository is public: tests, comments and README use neutral examples (`TICKET-123`, `my-repo`, `D:/work/...`), never names of work projects, internal paths or the author's own installed plugins.
 - Commits — only when the user asks.
+- The repository is public: tests, comments and README use neutral examples (`TICKET-123`, `my-repo`, `D:/work/...`), never names of work projects, internal paths or the author's own installed plugins.
