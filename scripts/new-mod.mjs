@@ -46,13 +46,20 @@ const plugins = join(ROOT, 'plugins')
 const links = [
   { file: join(ROOT, 'mise.local.toml'), needle: plugins, cmd: 'pnpm dev:link' },
   { file: join(homedir(), '.claude', 'settings.json'), needle: plugins.replaceAll('\\', '\\\\'), cmd: 'pnpm dev:link:desktop' },
+  { file: join(homedir(), '.gemini', 'config', 'plugins'), needle: '', cmd: 'pnpm dev:link:gemini' },
 ]
 for (const l of links)
-  if (existsSync(l.file) && readFileSync(l.file, 'utf8').includes(l.needle))
-    console.log(c.yellow(`This repo is linked in ${l.file}: to load "${name}" too, run ${c.cyan(l.cmd)}`))
+  if (existsSync(l.file) && (!l.needle || readFileSync(l.file, 'utf8').includes(l.needle)))
+    console.log(c.yellow(`Local dev environment detected in ${l.file}: to link "${name}", run ${c.cyan(l.cmd)}`))
 
 console.log(`
-Next:
-  ${c.cyan(`plugins/${name}/hooks/register.tsx`)}   write hooks
-  ${c.cyan(`pnpm check ${name}`)}                  validate + typecheck + test
-  ${c.cyan('pnpm dev:link:desktop')}                load in Claude Desktop with hot reload (once; new session)`)
+Next steps:
+  Claude Code:
+    ${c.cyan(`plugins/${name}/hooks/register.tsx`)}   implement function hooks
+    ${c.cyan(`pnpm check ${name}`)}                  validate + typecheck + test
+    ${c.cyan('pnpm dev:link:desktop')}                load in Claude Desktop with hot reload
+
+  Google Antigravity:
+    ${c.cyan(`plugins/${name}/sidecars/${name}/`)}    add sidecar.json, server.mjs, and webview UI
+    ${c.cyan('pnpm test:sidecar')}                    run sidecar test suite
+    ${c.cyan('pnpm dev:link:gemini')}                 link into ~/.gemini/config for Auxiliary Pane`)

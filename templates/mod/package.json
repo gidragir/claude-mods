@@ -7,6 +7,7 @@
     "check": "node ../../scripts/check.mjs __MOD_NAME__",
     "typecheck": "node ../../scripts/check.mjs --only=tsc __MOD_NAME__",
     "test": "node ../../scripts/check.mjs --only=test __MOD_NAME__",
+    "test:sidecar": "node --test sidecars/*/test/*.test.mjs",
     "validate": "node ../../scripts/check.mjs --only=validate __MOD_NAME__"
   }
 }
