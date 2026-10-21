@@ -7,6 +7,7 @@
     "check": "node ../../scripts/check.mjs ref-pane",
     "typecheck": "node ../../scripts/check.mjs --only=tsc ref-pane",
     "test": "node ../../scripts/check.mjs --only=test ref-pane",
+    "test:sidecar": "node --test sidecars/*/test/*.test.mjs",
     "validate": "node ../../scripts/check.mjs --only=validate ref-pane"
   }
 }
