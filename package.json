@@ -12,6 +12,8 @@
     "check": "node scripts/check.mjs",
     "typecheck": "node scripts/check.mjs --only=tsc",
     "test": "node scripts/check.mjs --only=test",
+    "test:sidecar": "node --test plugins/*/sidecars/*/test/*.test.mjs",
+    "test:all": "pnpm test && pnpm test:sidecar",
     "validate": "node scripts/check.mjs --only=validate",
     "lint": "biome check .",
     "format": "biome check --write .",
@@ -20,8 +22,10 @@
     "marketplace": "node scripts/marketplace.mjs",
     "dev:link": "node scripts/dev-link.mjs",
     "dev:link:desktop": "node scripts/dev-link.mjs --desktop",
+    "dev:link:gemini": "node scripts/dev-link.mjs --gemini",
     "dev:unlink": "node scripts/dev-link.mjs --off",
     "dev:unlink:desktop": "node scripts/dev-link.mjs --desktop --off",
+    "dev:unlink:gemini": "node scripts/dev-link.mjs --gemini --off",
     "dev:status": "node scripts/dev-link.mjs --status"
   },
   "devDependencies": {
