@@ -1,26 +1,51 @@
 # ref-pane
 
-A pane of references like RV-1 / FB-2 / T-3 from the model reply: a click shows the ticket artifact section (`features/<TICKET>/…`) right in the session.
+A dual-target artifact reference browser for **Claude Code** and **Antigravity**: resolves references like `RV-1`, `FB-2`, `T-3`, `ADR-4` from conversation turns and project docs, displaying the matching artifact section (`features/<TICKET>/…` or `docs/*.md`) with syntax styling.
 
-![Refs pane showing review, feedback, task and ADR references](docs/refs-pane.png)
+## Interfaces
+
+| Claude Code (Terminal TUI) | Antigravity (Auxiliary Pane Web UI) |
+| :---: | :---: |
+| ![Claude Code Refs TUI Pane](docs/refs-pane.png) | ![Antigravity Auxiliary Pane Web UI](docs/antigravity-refs-pane.png) |
+
+---
+
+## Dual-Target Support
+
+### 1. Claude Code (TUI Mod)
+
+- References from the model's reply appear in the interactive Refs pane automatically (background scanning without blocking turns).
+- `/ref RV-1` displays the section for a specific reference; `/ref` without arguments opens or focuses the pane.
+- Scans `features` directories (`cwd/features/<TICKET>/...`) and flat documents (`docs/*.md`).
+- Table rows and headings count as definitions (`| D-26 | … |`), while list items count as mentions.
+
+### 2. Antigravity (Auxiliary Pane Sidecar)
+
+- Integrated webview sidecar (`sidecars/ref-pane/`) running alongside Antigravity.
+- Surface or toggle via sidecar link: `[Refs Pane](sidecar://ref-pane/)` or via the Auxiliary Pane tab.
+- **Server-Side Rendered (SSR) Markdown**: zero-dependency parser converts markdown into sanitized HTML with headings, lists, tables, blockquotes, fenced code blocks, and clickable artifact badges.
+- **Workspace & Theme Synchronization**: automatically picks up IDE color themes and adapts to workspace changes via `sidecar_sdk`.
+- **Live Search & Filter**: instant querying and filtering of reference IDs across project documentation.
+- **Agent Skill & Rules**: accompanied by `skills/ref-pane/` for reference-aware navigation and `rules/AGENTS.md` for artifact citation standards.
+
+---
 
 ## Install
+
+### Claude Code
 
 ```
 /plugin marketplace add gidragir/claude-mods
 /plugin install ref-pane@claude-mods
 ```
 
-## Usage
+### Antigravity
 
-- References from the model reply appear in the Refs pane automatically (the search runs in the background and does not block the turn).
-- `/ref RV-1` shows the section for a reference; `/ref` without arguments opens the pane.
-- `features` directories are taken from `cwd/features` and from absolute paths mentioned in the session.
-- Flat project documents are searched in `docs/*.md` near cwd (cwd itself, its parent and grandparent): a table row or a heading counts as a definition (`| D-26 | … |`), a list item counts only as a mention.
-- Numbers may contain letters: `Q-L1`, `Q-P21`.
-- Only known artifact prefixes are recognized (by default RV, FB, T, TASK, ADR, DBG, OQ, BQ, RD, D, Q, FR, NFR, AC, US): UTF-8, SHA-256 and the like are ignored.
+Add the plugin directory to your Antigravity configuration or workspace plugins. The sidecar and skill will be automatically discovered.
 
-## Configuring prefixes
+---
+
+## Configuring Prefixes
 
 A custom set of prefixes is defined by the plugin option `prefixes`: `/config` → ref-pane → "Artifact prefixes" (or when installing the plugin). The format is `PREFIX=dir`, comma-separated:
 
@@ -28,13 +53,22 @@ A custom set of prefixes is defined by the plugin option `prefixes`: `/config` �
 RV=review, FB=feedback, BUG=bugs, ADR
 ```
 
-- Prefix: 1–4 uppercase Latin letters. Anything longer than 4 letters (for example `TICKET-123`) is a ticket number, not an artifact reference.
-- Dir: a subfolder of `features/<TICKET>/` where the section is looked up first; the other directories are scanned afterwards. Without `=`, the directory is the lowercase prefix (`ADR` = `ADR=adr`).
-- A custom list **replaces** the default set rather than extending it: list every prefix you need. An empty value means the default set.
-- Changes are picked up the next time the mod loads (a new session or a plugin reload).
+- **Prefix**: 1–4 uppercase Latin letters. Longer identifiers (e.g., `TICKET-123`) are treated as ticket numbers.
+- **Dir**: a subfolder of `features/<TICKET>/` where the section is looked up first. Without `=`, the directory defaults to the lowercase prefix (`ADR` = `ADR=adr`).
+- A custom list **replaces** the default set rather than extending it. An empty value restores defaults (`RV`, `FB`, `T`, `TASK`, `ADR`, `DBG`, `OQ`, `BQ`, `RD`, `D`, `Q`, `FR`, `NFR`, `AC`, `US`).
+- Numbers may contain letters (e.g. `Q-L1`, `Q-P21`). Non-artifact tokens like `UTF-8` or `SHA-256` are ignored.
 
-## Develop
+---
+
+## Development & Testing
 
 ```bash
+# Claude Code mod check (validate + typecheck + test)
 pnpm check ref-pane
+
+# Antigravity Sidecar tests (HTTP endpoints & SSR markdown renderer)
+pnpm test:sidecar
+
+# Run all tests across the repository
+pnpm test:all
 ```
