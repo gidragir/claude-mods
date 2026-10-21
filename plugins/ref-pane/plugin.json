@@ -2,6 +2,6 @@
   "name": "ref-pane",
   "displayName": "Refs Pane",
   "description": "A pane of references like RV-1/FB-2/T-3 from the model reply: shows the ticket artifact section right in the session",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "suggestedPrompts": ["Show artifact reference RV-1", "List all references mentioned in the latest review", "Open the Refs auxiliary pane"]
 }

@@ -17,7 +17,7 @@
       "name": "ref-pane",
       "source": "./plugins/ref-pane",
       "description": "A pane of references like RV-1/FB-2/T-3 from the model reply: a click shows the ticket artifact section right in the session",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   ]
 }

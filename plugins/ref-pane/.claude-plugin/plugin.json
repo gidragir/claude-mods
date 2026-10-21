@@ -1,6 +1,6 @@
 {
   "name": "ref-pane",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A pane of references like RV-1/FB-2/T-3 from the model reply: a click shows the ticket artifact section right in the session",
   "types": "./types/index.d.ts",
   "author": {
