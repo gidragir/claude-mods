@@ -1,0 +1,22 @@
+{
+  // Options from the header of the engine's claude-code.d.ts. No DOM, no Node:
+  // a hooks module runs in an environment of its own. Each mod extends this and
+  // includes the vendored engine types from ../../types/engine (npm run types:sync).
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["es2023"],
+    "types": [],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "jsx": "react",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "Fragment"
+  }
+}

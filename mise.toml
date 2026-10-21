@@ -1,0 +1,5 @@
+# Toolchain and shared env for this repo (committed).
+# Machine-local values go to mise.local.toml (gitignored): see mise.local.toml.example.
+[tools]
+node = "latest"
+pnpm = "latest"

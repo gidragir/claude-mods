@@ -1,0 +1,12 @@
+{
+  "name": "__MOD_NAME__",
+  "private": true,
+  "type": "module",
+  "description": "__MOD_DESCRIPTION__",
+  "scripts": {
+    "check": "node ../../scripts/check.mjs __MOD_NAME__",
+    "typecheck": "node ../../scripts/check.mjs --only=tsc __MOD_NAME__",
+    "test": "node ../../scripts/check.mjs --only=test __MOD_NAME__",
+    "validate": "node ../../scripts/check.mjs --only=validate __MOD_NAME__"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm check)",
+      "Bash(pnpm check *)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm test)",
+      "Bash(pnpm test *)",
+      "Bash(pnpm validate)",
+      "Bash(pnpm validate *)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm lint *)",
+      "Bash(pnpm --filter * check)",
+      "Bash(pnpm --filter * typecheck)",
+      "Bash(pnpm --filter * test)",
+      "Bash(pnpm --filter * validate)",
+      "Bash(pnpm dev:status)",
+      "Bash(claude plugin validate *)",
+      "Bash(claude plugin test *)",
+      "PowerShell(pnpm check)",
+      "PowerShell(pnpm check *)",
+      "PowerShell(pnpm test)",
+      "PowerShell(pnpm test *)",
+      "PowerShell(claude plugin validate *)",
+      "PowerShell(claude plugin test *)"
+    ]
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "claude-mods",
+  "private": true,
+  "type": "module",
+  "description": "Satellite repo for Claude Code mods (function-hook plugins) in TypeScript",
+  "packageManager": "pnpm@12.14.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "new": "node scripts/new-mod.mjs",
+    "check": "node scripts/check.mjs",
+    "typecheck": "node scripts/check.mjs --only=tsc",
+    "test": "node scripts/check.mjs --only=test",
+    "validate": "node scripts/check.mjs --only=validate",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "watch": "node scripts/watch.mjs",
+    "types:sync": "node scripts/sync-types.mjs",
+    "marketplace": "node scripts/marketplace.mjs",
+    "dev:link": "node scripts/dev-link.mjs",
+    "dev:link:desktop": "node scripts/dev-link.mjs --desktop",
+    "dev:unlink": "node scripts/dev-link.mjs --off",
+    "dev:unlink:desktop": "node scripts/dev-link.mjs --desktop --off",
+    "dev:status": "node scripts/dev-link.mjs --status"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "typescript": "catalog:"
+  }
+}

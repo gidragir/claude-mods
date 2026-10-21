@@ -1,0 +1,7 @@
+packages:
+  - plugins/*
+
+# Single source of versions for every workspace package: "typescript": "catalog:"
+catalog:
+  typescript: ^7.0.2
+  '@biomejs/biome': 2.5.15

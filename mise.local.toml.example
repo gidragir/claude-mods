@@ -1,0 +1,10 @@
+# Example only: the path below is a placeholder. Let `pnpm dev:link` write yours, or copy this to mise.local.toml (gitignored) and edit.
+# Applies to shells with `mise activate`, i.e. `claude` started in this repo from a terminal.
+# Claude Desktop does not read it: use `pnpm dev:link:desktop` (~/.claude/settings.json env).
+[env]
+# Each mod folder, loaded as --plugin-dir. Windows separator is ';', POSIX ':'.
+CLAUDE_CODE_PLUGIN_DIRS = 'C:\path\to\claude-mods\plugins\ref-pane'
+# Long-lived headless sessions (SDK, desktop) watch the folders and hot-reload on save.
+CLAUDE_CODE_PLUGIN_DIR_WATCH = '1'
+# Optional: more verbose engine logs while developing
+# ANTHROPIC_LOG = 'debug'
