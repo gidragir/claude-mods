@@ -4,9 +4,9 @@
   "type": "module",
   "description": "Comment on text selected in the chat: collect quoted comments and append them to your next message",
   "scripts": {
-    "check": "node ../../scripts/check.mjs quote-comments",
-    "typecheck": "node ../../scripts/check.mjs --only=tsc quote-comments",
-    "test": "node ../../scripts/check.mjs --only=test quote-comments",
-    "validate": "node ../../scripts/check.mjs --only=validate quote-comments"
+    "build": "bun ../../packages/bifrost/src/cli/bin.ts build .",
+    "dev": "bun ../../packages/bifrost/src/cli/bin.ts dev .",
+    "test": "bun test",
+    "check": "node ../../scripts/check.mjs quote-comments"
   }
 }

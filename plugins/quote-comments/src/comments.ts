@@ -1,6 +1,9 @@
-// Pure logic: no `$`, easy to unit-test. Keep hooks in register.tsx thin.
+// Pure logic: the comment block appended to a message. No host, easy to unit-test.
 
-import type { Comment } from '../types'
+// quote is empty while the pane waits for it to be pasted (a surface that shares no selection)
+export type Draft = { quote: string; ref?: string; note?: string }
+export type Comment = { id: number; quote: string; ref?: string; note: string }
+export type Editing = { id: number; note: string } | null
 
 export const MAX_QUOTE = 2000 // characters of a quote carried into the message
 

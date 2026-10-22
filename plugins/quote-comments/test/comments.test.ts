@@ -1,6 +1,6 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, test } from 'bun:test'
 
-import { appendComments, countLabel, formatBlock, MAX_QUOTE, preview } from './comments'
+import { appendComments, countLabel, formatBlock, MAX_QUOTE, preview } from '../src/comments'
 
 const one = { id: 1, quote: 'first line\nsecond line', note: ' looks wrong ' }
 const two = { id: 2, quote: 'retry three times', ref: 'toolu_1', note: 'why three?' }

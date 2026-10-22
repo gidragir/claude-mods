@@ -93,6 +93,7 @@ We have no maintenance window, it has to be online.
 | Claude Desktop | Supported by the engine | Select, then `/comment` or **+ Add Comment** |
 | VS Code extension | Not shared by the client | Copy, `/comment` or **+ Paste Quote**, paste into the pane |
 | Mobile | — | The pane renders no input field and shows a hint instead |
+| Antigravity (Auxiliary Pane) | The chat selection is not visible to the pane | **+ Paste Quote**, paste; **Append all to Chat** sends them (there is no prompt hook, so nothing is appended automatically) |
 
 If no surface can place the pane at all, `/comment` answers with a short text explaining that instead of failing
 silently.
@@ -119,5 +120,7 @@ silently.
 pnpm check quote-comments
 ```
 
-Logic of the appended block lives in `hooks/comments.ts` (pure, unit-tested); hooks and the pane are in
-`hooks/register.tsx`.
+Built with [Bifrost](../../packages/bifrost/README.md): the appended block is formatted in `src/comments.ts`
+(pure, unit-tested), state and actions are in `src/store.ts`, the pane in `src/ui.tsx`, and `src/plugin.tsx` wires
+the command and the prompt hook. `pnpm dev quote-comments` rebuilds on save; `bun test` in this folder runs the
+fast tests.
