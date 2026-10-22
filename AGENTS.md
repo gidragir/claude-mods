@@ -8,56 +8,78 @@ A satellite repository of cross-model plugins supporting both **Claude Code** (f
 - **Claude Code**: plugins are attached as additional plugin folders (`CLAUDE_CODE_PLUGIN_DIRS`) alongside installed plugins (`enabledPlugins`, marketplaces, `~/.claude/skills`).
 - **Google Antigravity**: plugins are discovered via `.agents/plugins.json` or linked via junctions into `~/.gemini/config/plugins/<name>` and `~/.gemini/config/sidecars/<id>`.
 
-## Cross-Model Tripartite Architecture
+## Specialized Agent Skills Index
 
-Plugins in this repository follow a tripartite architecture to share core logic while adapting cleanly to each environment:
+Detailed instructions, implementation patterns, and runtime standards are decomposed into modular skills in `.agents/skills/`. Agents should consult them on demand:
 
-1. **Shared Pure Core (`hooks/*.ts`)**:
+- [`.agents/skills/cross-mod/SKILL.md`](file:///d:/personal/claude-mods/.agents/skills/cross-mod/SKILL.md) — Master development hub and end-to-end workflow.
+- [`.agents/skills/bifrost-framework/SKILL.md`](file:///d:/personal/claude-mods/.agents/skills/bifrost-framework/SKILL.md) — `@gidragir/bifrost` core APIs, `FsLike`, `HeadlessStore`, and server factories.
+- [`.agents/skills/mod-scaffolding/SKILL.md`](file:///d:/personal/claude-mods/.agents/skills/mod-scaffolding/SKILL.md) — Scaffolding new plugins (`pnpm new`) and `mod.config.ts` configuration.
+- [`.agents/skills/claude-code-mod/SKILL.md`](file:///d:/personal/claude-mods/.agents/skills/claude-code-mod/SKILL.md) — Claude Code adapter, sandbox watchdog budget (~5000ms), TUI layout rules, and button constraints.
+- [`.agents/skills/antigravity-sidecar/SKILL.md`](file:///d:/personal/claude-mods/.agents/skills/antigravity-sidecar/SKILL.md) — Antigravity Auxiliary Pane sidecar, token security, Pico CSS webview, and SSR markdown.
+- [`.agents/skills/cross-mod-testing/SKILL.md`](file:///d:/personal/claude-mods/.agents/skills/cross-mod-testing/SKILL.md) — Hybrid test suite (`bun test`, `pnpm test:claude`, `pnpm test:sidecar`), mocks, and quality checks.
+- [`.agents/skills/plugin-distribution/SKILL.md`](file:///d:/personal/claude-mods/.agents/skills/plugin-distribution/SKILL.md) — Local linking (`dev:link`, `dev:link:gemini`), `bifrost build`, and GitHub Actions release pipelines.
+
+## Cross-Model Tripartite Architecture with Bifrost
+
+Plugins in this repository follow a tripartite architecture powered by **Bifrost** (`@gidragir/bifrost`), sharing core domain logic, unified configuration, and server runtime while adapting cleanly to each environment:
+
+1. **Shared Pure Core (`@gidragir/bifrost/core`, `hooks/*.ts`)**:
    - Pure domain logic with zero external dependencies, no DOM, and no direct runtime globals (`$` or `node:fs`).
-   - Relies on abstractions like `FsLike` (`{ list, read }`) so the same algorithms operate in both environments.
-   - Tested with unit tests in `hooks/*.test.ts`.
-   - Node 24 natively imports TypeScript files (`hooks/*.ts`) with type stripping—no build or bundling needed.
+   - Relies on abstractions like `FsLike` (`{ list, read }`) and safe traversal helpers (`safeList`, `safeRead`, `boundTraversalByRecency`) so the same algorithms operate safely in both environments.
+   - Reactive `HeadlessStore` manages decoupled state subscriptions.
+   - Tested with unit tests in `hooks/*.test.ts` via lightning-fast `bun test` (~100ms).
 
-2. **Claude Code Adapter (`hooks/register.tsx`, `hooks/ui.tsx`)**:
-   - Implements the Claude Code plugin contract via `export const register: Register = (on, options) => { ... }`.
+2. **Unified Mod Configuration (`mod.config.ts`)**:
+   - Each plugin defines its specification in `mod.config.ts` using `defineMod(...)`.
+   - Acts as the single source of truth for plugin metadata, Claude commands, Antigravity sidecar settings, suggested prompts, and configuration schema.
+   - Compiles cleanly into `.claude-plugin/plugin.json`, `plugin.json`, and `sidecar.json` without destructive overwrites.
+
+3. **Claude Code Adapter (`@gidragir/bifrost/server`, `hooks/register.tsx`, `hooks/ui.tsx`)**:
+   - Implements the Claude Code plugin contract via `defineClaudePlugin(...)` or `export const register: Register = (on, options) => { ... }`.
    - Integrates with the Claude Code sandbox `$`: `$.fs` maps to `FsLike`, `$.slashCommand.register` adds commands, and `$.ui.render` mounts interactive TUI panes into the terminal.
-   - **TUI UI Architecture**: Avoids heavy terminal UI engines (Ratatui/re-implementations); uses pure functional patterns (`renderMasterDetail`, `renderEmptyState`, `truncate` in `hooks/ui.tsx`) composed on top of native Flexbox primitives (`Box`, `Text`, `Button`, `Input`).
+   - **TUI UI Architecture**: Pure functional patterns (`renderMasterDetail`, `Card`, `renderSplitView`, `renderEmptyState`, `truncate` from `@gidragir/bifrost/ui`) composed on top of native Flexbox primitives (`Box`, `Text`, `Button`, `Input`).
 
-3. **Google Antigravity Adapter (`sidecars/<mod>/`, `skills/`, `rules/`)**:
-   - **Sidecar (`sidecars/<mod>/`)**: A lightweight background Node.js HTTP microservice configured by `sidecar.json`. Serves webview HTML into the Antigravity Auxiliary Pane (`SIDECAR_UI_ENTRYPOINT_AUX_PANE`).
+4. **Google Antigravity Adapter (`@gidragir/bifrost/server`, `sidecars/<mod>/`, `skills/`, `rules/`)**:
+   - **Sidecar (`sidecars/<mod>/`)**: A lightweight background Node.js HTTP microservice created with `createSidecarApp` / `createSidecarServer`. Serves webview HTML into the Antigravity Auxiliary Pane (`SIDECAR_UI_ENTRYPOINT_AUX_PANE`).
+   - **Token Verification & Preload**: Validates `ANTIGRAVITY_SIDECAR_UI_TOKEN` on protected routes, serves self-contained `/preload.js` with `window.sidecar` contract.
    - **Webview UI Styling**: Uses ultra-lightweight semantic `pico.antigravity.css` mapped directly to Antigravity IDE custom properties (`--background`, `--foreground`, `--accent-color`, `--border-color`). Employs clean semantic HTML (`<header>`, `<main>`, `<aside>`, `<article>`, `<table>`) with zero framework bloat.
-   - **Shared Core Import**: `server.mjs` directly imports pure functions from `../../hooks/*.ts` using Node 24 native type stripping.
-   - **Server-Side Rendering (SSR)**: Markdown is parsed into sanitized HTML on the server (`markdown.mjs`) with zero npm dependencies.
-   - **Agent Skills (`skills/<mod>/SKILL.md`)**: Teaches the agent when and how to navigate or invoke the plugin, including sidecar links (`[Label](sidecar://<id>/)`).
-   - **Agent Rules (`rules/AGENTS.md`)**: Defines domain standards and citation rules automatically injected into agent context.
+   - **Server-Side Rendering (SSR)**: Markdown is parsed into sanitized HTML on the server (`renderMarkdown` from `@gidragir/bifrost/ui`) with artifact badge support and zero npm dependencies.
+   - **Agent Skills & Rules**: `skills/<mod>/SKILL.md` teaches agents when and how to navigate or invoke the plugin, including sidecar links (`[Label](sidecar://<id>/)`). `rules/AGENTS.md` defines domain standards automatically injected into agent context.
 
 ## Stack and Environment
 
-- **Node >= 24** and **pnpm >= 11** are pinned in `mise.toml`; local overrides go in `mise.local.toml` (in `.gitignore`, sample in `mise.local.toml.example`).
-- **pnpm workspace**: `plugins/*`, shared tool versions via `catalog:` in `pnpm-workspace.yaml`. Install new dev dependencies at the root through the catalog, never in individual mods.
-- **TypeScript 7**: type checking only (`tsc -p`), no build step. The Claude Code engine and Node 24 run `.ts/.tsx` directly.
+- **Node >= 24**, **pnpm >= 11**, and **Bun >= 1.2** are pinned in `mise.toml`; local overrides go in `mise.local.toml` (in `.gitignore`, sample in `mise.local.toml.example`).
+- **pnpm workspace**: `packages/*`, `plugins/*`, shared tool versions via `catalog:` in `pnpm-workspace.yaml`. Install new dev dependencies at the root through the catalog, never in individual mods.
+- **TypeScript 7**: type checking (`tsc -p packages/bifrost` and `pnpm typecheck`), Node 24 runs `.ts/.tsx` directly via native type stripping.
+- **Bun**: used for ultra-fast unit testing (`bun test`).
 - **Biome**: fast linter and formatter configured in `biome.json`.
 - **Scripts**: plain Node.js in `scripts/*.mjs` with no third-party dependencies, fully cross-platform (primary development OS is Windows).
 
 ## Cross-Model Plugin Directory Layout
 
 ```
-packages/ui/                   Shared UI library & assets (source of truth)
-  tui/                         Pure functional TUI patterns (patterns.tsx)
-  web/                         Semantic Pico CSS & webview client SDK
-  server/                      Sidecar server factory & SSR markdown parser
+packages/
+  bifrost/                     @gidragir/bifrost unified framework package
+    src/core/                  FsLike, HeadlessStore, defineMod, traversal helpers
+    src/server/                defineClaudePlugin, createSidecarApp, preload, checkIsMain
+    src/ui/                    TUI patterns, SSR markdown parser, webview client SDK
+    src/cli/                   bifrost build compiler (esbuild bundles & manifests)
+  claude-code/                 Testing bridge shims for Bun/Node test runners
+  react/                       JSX functional component runtime shims
+  ui/                          Legacy backward compatibility re-exports & raw styles
 plugins/<mod>/
-  .claude-plugin/plugin.json   Claude Code manifest (name, version, description, author[, types])
-  plugin.json                  Antigravity manifest (name, displayName, description, version, suggestedPrompts)
+  mod.config.ts                Bifrost module definition (single source of truth)
+  .claude-plugin/plugin.json   Claude Code manifest (generated/synchronized)
+  plugin.json                  Antigravity manifest (generated/synchronized)
   hooks/hooks.json             { "modules": ["./register.tsx"] } — Claude Code entry
-  hooks/register.tsx           export const register: Register = (on, options) => { ... }
-  hooks/ui.tsx                 Vendored functional TUI patterns (synced via pnpm ui:sync)
+  hooks/register.tsx           Claude Code plugin entry using defineClaudePlugin
+  hooks/ui.tsx                 Functional TUI patterns (from @gidragir/bifrost/ui)
   hooks/*.ts                   Shared pure core logic (FsLike abstraction, no $, no Node globals)
-  hooks/*.test.ts              Unit tests: import { test, expect, mock } from 'claude-code/testing'
+  hooks/*.test.ts              Unit tests: import { test, expect } from 'claude-code/testing'
   sidecars/<mod>/
-    sidecar.json               Antigravity sidecar manifest (command, args, ui_config, views)
-    server.mjs                 Node HTTP server, imports ../../hooks/*.ts directly via type stripping
-    vendor/                    Vendored sidecar-server.mjs & markdown.mjs (synced via pnpm ui:sync)
+    sidecar.json               Antigravity sidecar manifest (generated/synchronized)
+    server.mjs                 Node HTTP server using createSidecarApp from @gidragir/bifrost/server
     ui/index.html              Auxiliary Pane webview interface (styled with Pico CSS)
     ui/vendor/                 Vendored pico.antigravity.css & client.js (synced via pnpm ui:sync)
     test/*.test.mjs            Node test runner tests: import { test } from 'node:test'
@@ -118,10 +140,28 @@ Create a new mod via `pnpm new <mod> "description"` (template in `templates/mod`
   - Standard protocol: emit dual `window.parent.postMessage` events (`add-chat-context` and `insert-prompt`), attempt `window.sidecar.agent?.sendMessage(...)`, and fall back to clipboard writing (`navigator.clipboard.writeText`) with toast feedback.
   - Constrain floating action buttons within viewport boundaries (`Math.min(window.innerWidth - buttonWidth, ...)`).
 
-### 3. Plugin Isolation & Vendoring Strategy
-- **Self-Contained Distribution**: Plugins installed via Claude Code Marketplace or Antigravity Extensions/Plugins UI are extracted as isolated standalone directories.
-- **No Parent Directory Traversal**: Installed plugins cannot access `../../packages/ui` or other monorepo siblings.
-- **Vendoring via `pnpm ui:sync`**: Shared UI patterns, CSS styles, and sidecar server helpers live in `packages/ui` during authoring, and are synchronized into `plugins/<mod>/hooks/ui.tsx` and `plugins/<mod>/sidecars/<mod>/vendor/` before publishing or local installation.
+### 3. Plugin Distribution & Compilation (`bifrost build`)
+- **Self-Contained Distribution**: Plugins installed via Claude Code Marketplace or Antigravity Extensions/Plugins UI run in isolated standalone directories.
+- **Standalone Bundling with Bifrost**: The `bifrost build` CLI compiler uses `esbuild` to produce self-contained bundles (`dist/claude.js`, `dist/sidecar.mjs`, `dist/index.html`) so end users do not require monorepo dependencies.
+- **Webview Asset Synchronization**: `pnpm ui:sync` vendors `client.js` and `pico.antigravity.css` into plugin `ui/vendor/` directories, followed by automated Biome formatting.
+- **Sidecar Framework Imports**: Sidecars in the monorepo import directly from `@gidragir/bifrost/server` and `@gidragir/bifrost/ui`, eliminating dead `vendor/` server scripts.
+
+### 4. Critical Architectural Pitfalls & Guardrails
+- **Hybrid Test Runner Rules**:
+  - `bun test` runs pure domain logic, headless stores, markdown parsing, and sidecar HTTP servers across the monorepo in milliseconds.
+  - Claude Code integration tests in `register.test.ts` rely on engine host hooks (`$`, `on`). In `packages/claude-code/testing.js`, tests with parameters (`fn.length > 0`) are safely skipped under Bun/Node and must be executed via `pnpm test:claude` (`claude plugin test`).
+  - Never execute host-bound tests directly in generic Node/Bun runners without the bridge check.
+- **Non-Destructive Manifest Compilation**:
+  - `generateManifests` in `@gidragir/bifrost/cli` merges with existing `.claude-plugin/plugin.json`, `plugin.json`, and `sidecar.json`.
+  - It maps `mod.config.ts`'s `configSchema` into `.claude-plugin/plugin.json`'s `userConfig` while strictly preserving existing user settings, types declarations, license, repository, and suggested prompts.
+- **CLI Entrypoint Isolation**:
+  - The main package `@gidragir/bifrost` index must NEVER re-export `cli/index.js`.
+  - When `loadModConfig` dynamically imports `mod.config.ts`, importing `@gidragir/bifrost` must not re-evaluate the CLI compiler or trigger recursive double-execution.
+- **Webview Asset Resolution (`findAssetPath`)**:
+  - When sidecars are bundled into `dist/sidecar.mjs`, `__dirname` shifts to `dist/`. Always use multi-candidate asset lookups checking `ui/vendor`, `dist/ui/web`, and `src/ui/web` to avoid HTTP 404s on `/pico.css` or `/client.js`.
+- **Release Branch Invariants for Package Managers**:
+  - In `.github/workflows/release-plugins.yml`, orphan release branches (`release/<plugin>`) must contain compiled plugin files directly at repository root.
+  - Placing files under nested folders like `plugins/<plugin>/` breaks native installation via `claude plugin install <repo>#release/<plugin>`.
 
 ## Artifact Reference Standards
 
@@ -145,11 +185,14 @@ In Antigravity conversations, surface interactive sidecar pills to open the Auxi
 | --- | --- | --- |
 | `pnpm install` | All | Install dependencies across workspace |
 | `pnpm new <mod> "description"` | All | Scaffold a new mod from template |
-| `pnpm check [mod...]` | Claude Code | `claude plugin validate` + `tsc -p` + `claude plugin test` |
-| `pnpm test` | Claude Code | Run Claude Code engine tests (`*.test.ts`) |
+| `bun test` | All | Run ultra-fast unit and sidecar tests via Bun |
+| `pnpm test:claude` | Claude Code | Run Claude Code engine tests (`claude plugin test`) |
 | `pnpm test:sidecar` | Antigravity | Run Node test runner suite for sidecars (`*.test.mjs`) |
-| `pnpm test:all` | Both | Run both engine tests and sidecar tests |
+| `pnpm test:all` | Both | Run full suite: `bun test && pnpm test:claude && pnpm test:sidecar` |
+| `pnpm check [mod...]` | Claude Code | `claude plugin validate` + `tsc -p` + `claude plugin test` |
 | `pnpm typecheck` | Claude Code | Run TypeScript type checks (`tsc -p`) |
+| `bun run build` | Framework | Build `@gidragir/bifrost` and emit TypeScript `.d.ts` declarations |
+| `bun x bifrost build <path>`| Both | Compile standalone plugin bundles (`dist/claude.js`, `dist/sidecar.mjs`) |
 | `pnpm lint` | All | Run Biome lint checks |
 | `pnpm format` | All | Format codebase with Biome |
 | `pnpm watch [mod...]` | Claude Code | Watch mode: typecheck and test on file save |
@@ -161,7 +204,7 @@ In Antigravity conversations, surface interactive sidecar pills to open the Auxi
 | `pnpm dev:unlink:gemini` | Antigravity | Unlink mods and sidecars from `~/.gemini/config/` |
 | `pnpm dev:status` | Both | Show linked mods across Claude Code, Desktop, and Antigravity |
 | `pnpm marketplace` | Claude Code | Rebuild `.claude-plugin/marketplace.json` |
-| `pnpm ui:sync` | Both | Synchronize shared UI toolkit and sidecar server into templates and plugins |
+| `pnpm ui:sync` | Both | Synchronize shared web assets into templates and plugins |
 | `pnpm types:sync` | Claude Code | Update local engine type declarations in `types/engine` |
 
 ### Antigravity Local Linking
