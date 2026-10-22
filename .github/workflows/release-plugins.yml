@@ -1,0 +1,85 @@
+name: Release Plugins
+
+on:
+  push:
+    tags:
+      - 'ref-pane-v*'
+      - 'quote-comments-v*'
+      - 'plugin-v*'
+  workflow_dispatch:
+    inputs:
+      plugin:
+        description: 'Plugin name to release'
+        required: true
+        default: 'ref-pane'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_dispatch' && inputs.plugin == matrix.plugin) ||
+      (github.event_name == 'push' && startsWith(github.ref, format('refs/tags/{0}-v', matrix.plugin)))
+    strategy:
+      matrix:
+        plugin: [ref-pane, quote-comments]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build Bifrost Framework
+        run: |
+          cd packages/bifrost
+          bun run build
+
+      - name: Build Plugin Bundle via Bifrost CLI
+        run: |
+          node packages/bifrost/dist/cli.js build "plugins/${{ matrix.plugin }}"
+
+      - name: Package Plugin Tarball Asset
+        run: |
+          cd "plugins/${{ matrix.plugin }}"
+          tar -czf "../../${{ matrix.plugin }}.tar.gz" .
+
+      - name: Push to Orphan Release Branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH_NAME="release/${{ matrix.plugin }}"
+
+          # Stage compiled plugin files including dotfiles (.claude-plugin)
+          TMP_DIR=$(mktemp -d)
+          cp -a "plugins/${{ matrix.plugin }}/." "$TMP_DIR/"
+
+          git checkout --orphan "$BRANCH_NAME"
+          git rm -rf . 2>/dev/null || true
+          rm -rf ..?* .[!.]* * 2>/dev/null || true
+
+          # Copy plugin files directly into repository root
+          cp -a "$TMP_DIR/." .
+          rm -rf "$TMP_DIR"
+
+          # Force-add dist and all files regardless of .gitignore
+          git add -A -f
+          git commit -m "chore(release): release ${{ matrix.plugin }} bundle" || echo "No changes to commit"
+          git push origin "$BRANCH_NAME" --force
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Tarball Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.plugin }}-bundle
+          path: ${{ matrix.plugin }}.tar.gz

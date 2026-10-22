@@ -1,0 +1,49 @@
+name: Publish Bifrost Framework
+
+on:
+  push:
+    tags:
+      - 'framework-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run tests
+        run: bun test packages
+
+      - name: Build @gidragir/bifrost
+        run: |
+          cd packages/bifrost
+          bun run build
+
+      - name: Configure npm auth
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > packages/bifrost/.npmrc
+          echo "@gidragir:registry=https://npm.pkg.github.com" >> packages/bifrost/.npmrc
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to GitHub npm Registry
+        run: |
+          cd packages/bifrost
+          bun publish --registry https://npm.pkg.github.com
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
