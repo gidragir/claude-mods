@@ -1,0 +1,6 @@
+[test]
+timeout = 10000
+
+[install]
+exact = false
+workspaces = true

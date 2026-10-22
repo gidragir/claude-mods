@@ -4,5 +4,27 @@
   "editor.codeActionsOnSave": { "source.organizeImports.biome": "explicit" },
   "typescript.tsdk": "node_modules/typescript/lib",
   "files.eol": "\n",
-  "search.exclude": { "**/.claude-plugin/types": true, "types/engine": true }
+  "files.exclude": {
+    "**/.claude": true,
+    "**/.claude-plugin": true
+  },
+  "search.exclude": { "**/.claude-plugin/types": true, "types/engine": true },
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "package.json": "pnpm-lock.yaml, bun.lock*, pnpm-workspace.yaml, bunfig.toml, package-lock.json, yarn.lock, .npmrc, .pnpmfile.cjs",
+    "tsconfig.json": "tsconfig.*.json",
+    "tsconfig.base.json": "tsconfig.*.json",
+    "README.md": "README.*.md, CHANGELOG*, CONTRIBUTING*, LICENSE*",
+    "AGENTS.md": "CLAUDE.md, GEMINI.md",
+    "mise.toml": "mise.*.toml",
+    "biome.json": "biome.jsonc",
+    ".gitignore": ".gitattributes, .gitmodules",
+    ".env": ".env.*, .env.example",
+    "sidecar.json": "server.mjs, markdown.mjs",
+    "*.ts": "${capture}.js, ${capture}.d.ts, ${capture}.d.ts.map, ${capture}.js.map, ${capture}.test.ts, ${capture}.test.tsx, ${capture}.spec.ts",
+    "*.tsx": "${capture}.test.tsx, ${capture}.test.ts, ${capture}.spec.tsx, ${capture}.css",
+    "*.js": "${capture}.js.map, ${capture}.d.ts, ${capture}.d.ts.map, ${capture}.test.js, ${capture}.spec.js",
+    "*.mjs": "${capture}.test.mjs, ${capture}.spec.mjs"
+  }
 }
