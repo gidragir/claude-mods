@@ -11,7 +11,7 @@
       "name": "quote-comments",
       "source": "./plugins/quote-comments",
       "description": "Comment on text selected in the chat: collect quoted comments and append them to your next message",
-      "version": "0.1.0"
+      "version": "0.2.0"
     },
     {
       "name": "ref-pane",
