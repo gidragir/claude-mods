@@ -1,0 +1,48 @@
+{
+  "name": "@gidragir/bifrost",
+  "version": "0.1.0",
+  "description": "Cross-harness plugin framework for Claude Code and Google Antigravity",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "bifrost": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "import": "./dist/server.js",
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./ui": {
+      "import": "./dist/ui.js",
+      "types": "./dist/ui.d.ts",
+      "default": "./dist/ui.js"
+    },
+    "./core": {
+      "import": "./dist/core.js",
+      "types": "./dist/core.d.ts",
+      "default": "./dist/core.js"
+    }
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
+  "scripts": {
+    "build": "node ./build.mjs",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

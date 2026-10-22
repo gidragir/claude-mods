@@ -9,6 +9,7 @@
   },
   "scripts": {
     "new": "node scripts/new-mod.mjs",
+    "build": "bun run --filter '*' build",
     "check": "node scripts/check.mjs",
     "typecheck": "node scripts/check.mjs --only=tsc",
     "test": "node scripts/check.mjs --only=test",
@@ -31,6 +32,20 @@
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
+    "@types/node": "^26.6.5",
     "typescript": "catalog:"
+  },
+  "dependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "workspaces": {
+    "packages": [
+      "plugins/*",
+      "packages/*"
+    ],
+    "catalog": {
+      "typescript": "^7.0.2",
+      "@biomejs/biome": "2.5.15"
+    }
   }
 }
