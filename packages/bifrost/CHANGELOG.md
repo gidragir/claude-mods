@@ -16,4 +16,6 @@ Fixed. A deprecation names its replacement and the migration in one line.
 - agy: dim text, blockquotes and meta lines were invisible. Antigravity sets its theme variables
   (`--muted`, `--accent`, `--border`…) inline on the root, overriding ours; `bifrost.css` now declares
   only `--bf-*` and reads `--muted-foreground`, `--border`, `--accent` from the host.
+- `node build.mjs` emits declarations without the engine's types (absent in CI): a stand-in in
+  `build/claude-code.d.ts`; the published `.d.ts` are unchanged.
 - `MasterDetail`: the narrow drill-down shows a button per item again; meta text stays on one line.

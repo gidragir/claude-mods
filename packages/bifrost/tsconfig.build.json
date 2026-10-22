@@ -1,6 +1,14 @@
 {
-  // declarations for the published package (node build.mjs)
+  // declarations for the published package (node build.mjs). The engine's types are not in the repository
+  // or CI, so build/claude-code.d.ts stands in for them; the real check is `tsc -p packages/bifrost`.
   "extends": "./tsconfig.json",
-  "compilerOptions": { "rootDir": "src", "noEmit": false, "declaration": true, "emitDeclarationOnly": true, "outDir": "dist/types" },
-  "include": ["src", "../../types/engine/claude-code"]
+  "compilerOptions": {
+    "rootDir": "src",
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist/types",
+    "noImplicitAny": false
+  },
+  "include": ["src", "build/claude-code.d.ts"]
 }
