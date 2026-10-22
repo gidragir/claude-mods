@@ -12,7 +12,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 // Shared pure core imported directly via Node 24 type stripping
-import { findIds, HOME, resolveRefs, rootsIn } from '../../hooks/refs.ts'
+import { findIds, HOME, parsePrefixes, resolveRefs, rootsIn } from '../../hooks/refs.ts'
 import { renderMarkdown } from './markdown.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -61,6 +61,14 @@ const FALLBACK_PRELOAD = `
         }
       }
       return () => workspaceListeners.delete(listener);
+    },
+    agent: {
+      sendMessage: async function(message, convId) {
+        return window.sidecar.fetch('/_sidecar/send-message', {
+          method: 'POST',
+          body: JSON.stringify({ conversationId: convId || conversationId, message })
+        }).catch(() => null);
+      }
     }
   };
 })();
@@ -155,29 +163,61 @@ export function createSidecarHandler({ token = process.env.ANTIGRAVITY_SIDECAR_U
             }
           }
 
-          const ids = findIds(query)
+          let prefixes = HOME
+          const rawPrefixes = payload.prefixes || url.searchParams.get('prefixes') || process.env.REFS_PREFIXES
+          if (rawPrefixes) {
+            const custom =
+              typeof rawPrefixes === 'string'
+                ? parsePrefixes(rawPrefixes)
+                : parsePrefixes(
+                    Object.entries(rawPrefixes)
+                      .map(([k, v]) => `${k}=${v}`)
+                      .join(','),
+                  )
+            if (Object.keys(custom).length > 0) prefixes = custom
+          }
+
+          const ids = findIds(query, prefixes)
           const roots = rootsIn(query)
 
           let searchIds = ids
           if (searchIds.length === 0) {
-            // Scan docs/ in cwd and roots to auto-discover reference IDs in markdown files
+            // Scan docs/ and features/ in cwd and roots to auto-discover reference IDs in markdown files
             const candidateDirs = [join(cwd, 'docs')]
+            try {
+              const featEntries = await nodeFs.list(join(cwd, 'features'))
+              for (const feat of featEntries) {
+                if (feat.kind === 'dir') {
+                  for (const dirName of Object.values(prefixes)) {
+                    candidateDirs.push(join(cwd, 'features', feat.name, dirName))
+                  }
+                }
+              }
+            } catch {}
             const discovered = new Set()
             for (const d of candidateDirs) {
               const entries = await nodeFs.list(d)
               for (const e of entries) {
                 if (e.kind === 'file' && e.name.endsWith('.md')) {
                   const content = await nodeFs.read(join(d, e.name)).catch(() => '')
-                  for (const id of findIds(content)) {
+                  for (const id of findIds(content, prefixes)) {
                     discovered.add(id)
                   }
                 }
               }
             }
-            searchIds = discovered.size > 0 ? Array.from(discovered) : ['RV-001', 'FB-001', 'T-001', 'ADR-001']
+            const fallbackList = Object.keys(prefixes)
+              .slice(0, 4)
+              .map(p => `${p}-001`)
+            searchIds =
+              discovered.size > 0
+                ? Array.from(discovered)
+                : fallbackList.length > 0
+                  ? fallbackList
+                  : ['RV-001', 'FB-001', 'T-001', 'ADR-001']
           }
 
-          let refs = await resolveRefs(nodeFs, cwd, searchIds, query, roots, HOME)
+          let refs = await resolveRefs(nodeFs, cwd, searchIds, query, roots, prefixes)
 
           // If query has non-empty text without IDs, filter resolved refs matching text
           const trimmedQuery = query.trim()

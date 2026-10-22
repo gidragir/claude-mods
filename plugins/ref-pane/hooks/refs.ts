@@ -50,12 +50,24 @@ export function parsePrefixes(src: string): Record<string, string> {
 /** RV-1 → RV-001; a lettered number stays as is: Q-L1. */
 export const canon = (prefix: string, n: string) => `${prefix}-${/^\d+$/.test(n) ? n.padStart(3, '0') : n}`
 
-/** Unique IDs in order of appearance. TICKET-123 does not match: the prefix is longer than 4 letters. */
-export function findIds(text: string): string[] {
+/** Unique IDs in order of appearance. TICKET-123 does not match unless configured in custom prefixes. */
+export function findIds(text: string, prefixes?: Record<string, string> | string[]): string[] {
   const seen: string[] = []
   for (const m of text.matchAll(ID)) {
     const id = canon(m[1]!, m[2]!)
     if (!seen.includes(id)) seen.push(id)
+  }
+  if (prefixes) {
+    const customKeys = Array.isArray(prefixes) ? prefixes : Object.keys(prefixes)
+    const longKeys = customKeys.filter(k => k.length > 4 && /^[A-Z]+$/.test(k))
+    if (longKeys.length > 0) {
+      const longSrc = String.raw`(?<![\w-])(${longKeys.join('|')})-(\d{1,4}|[A-Z]{1,2}\d{1,4})(?![\w-])`
+      const longRegex = new RegExp(longSrc, 'g')
+      for (const m of text.matchAll(longRegex)) {
+        const id = canon(m[1]!, m[2]!)
+        if (!seen.includes(id)) seen.push(id)
+      }
+    }
   }
   return seen
 }
@@ -63,7 +75,14 @@ export function findIds(text: string): string[] {
 /** A line defines `id` if it is the first ID in it (not "closes OQ-1" somewhere in the tail). */
 const leadsWith = (s: string, id: string) => {
   const m = ID_FIRST.exec(s)
-  return m !== null && canon(m[1]!, m[2]!) === id
+  if (m !== null && canon(m[1]!, m[2]!) === id) return true
+  const prefix = id.split('-')[0]!
+  if (prefix.length > 4) {
+    const customFirst = new RegExp(String.raw`(?<![\w-])(${prefix})-(\d{1,4}|[A-Z]{1,2}\d{1,4})(?![\w-])`)
+    const cm = customFirst.exec(s)
+    return cm !== null && canon(cm[1]!, cm[2]!) === id
+  }
+  return false
 }
 
 /** Section of item `id` in md: a heading, a table row or a list item. */
@@ -97,11 +116,12 @@ export function extractSection(md: string, id: string): { line: number; text: st
 
 /** A question without its own entry: look for a decision that "closes" it (`- RD-4 (closes OQ-1). …`; the Russian "закрывает" is also recognised). */
 function closedBy(lines: string[], id: string): { line: number; text: string } | undefined {
+  const prefix = id.split('-')[0]!
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i]!
     const by = /(?:closes|закрыва[а-яё]*)\s+([^).]*)/i.exec(l)
-    if (!by || !findIds(by[1]!).includes(id)) continue
-    const lead = findIds(l.slice(0, 24))[0]
+    if (!by || !findIds(by[1]!, [prefix]).includes(id)) continue
+    const lead = findIds(l.slice(0, 24), [prefix])[0]
     if (lead === undefined || lead === id) continue
     let end = i + 1
     while (end < lines.length && /^(\s{2,}\S|\s*$)/.test(lines[end]!) && end - i < 12) end++
@@ -143,7 +163,7 @@ async function ticketDirs(fs: FsLike, roots: string[], hint: string) {
 }
 
 /** docs directories near cwd: cwd itself, its parent and grandparent (the session may sit in a project subfolder). */
-function docDirs(cwd: string | undefined): string[] {
+export function docDirs(cwd: string | undefined): string[] {
   if (!cwd) return []
   const parts = cwd.replaceAll('\\', '/').replace(/[/]+$/, '').split('/')
   const out: string[] = []

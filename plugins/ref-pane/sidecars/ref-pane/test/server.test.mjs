@@ -90,6 +90,23 @@ test('Antigravity Sidecar Server', async t => {
       assert.equal(dataAuto.refs.length, 2)
       const ids = dataAuto.refs.map(r => r.id).sort()
       assert.deepEqual(ids, ['RV-001', 'RV-002'])
+
+      // 4. Custom prefixes resolution
+      await writeFile(join(docsDir, 'security.md'), '# Security\n\n## SEC-1 Vulnerability in parser\nEscape all user inputs.')
+      const resCustom = await fetch(`${baseUrl}/api/refs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'SEC-1',
+          prefixes: 'SEC=docs',
+          workspaceUris: [tempDir],
+        }),
+      })
+      assert.equal(resCustom.status, 200)
+      const dataCustom = await resCustom.json()
+      assert.equal(dataCustom.refs.length, 1)
+      assert.equal(dataCustom.refs[0].id, 'SEC-001')
+      assert.ok(dataCustom.refs[0].text.includes('Vulnerability in parser'))
     } finally {
       await rm(tempDir, { recursive: true, force: true })
     }

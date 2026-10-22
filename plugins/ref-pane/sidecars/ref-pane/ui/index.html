@@ -135,6 +135,17 @@
       margin-bottom: 10px;
       border-bottom: 1px solid var(--border);
       padding-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .detail-header-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      flex: 1;
     }
     .detail-id {
       color: var(--accent);
@@ -144,6 +155,63 @@
       opacity: 0.6;
       font-size: 11px;
       margin-left: 8px;
+    }
+    .add-to-chat-btn {
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #ffffff;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: opacity 0.15s, background-color 0.15s;
+    }
+    .add-to-chat-btn:hover {
+      opacity: 0.9;
+    }
+    .floating-quote-btn {
+      position: fixed;
+      z-index: 1000;
+      display: none;
+      background: var(--accent);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+      animation: fadeIn 0.12s ease-out;
+    }
+    .floating-quote-btn:hover {
+      filter: brightness(1.1);
+    }
+    .toast {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: var(--accent);
+      color: #ffffff;
+      padding: 8px 14px;
+      border-radius: 4px;
+      font-size: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+      z-index: 2000;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
     }
     .markdown-body {
       font-size: 13px;
@@ -259,6 +327,10 @@
       <div class="detail-empty">Select a reference item to view its content</div>
     </div>
   </div>
+  <button type="button" id="floatingQuoteBtn" class="floating-quote-btn" title="Add selected text to chat context">
+    + Add to Chat
+  </button>
+  <div id="toast" class="toast"></div>
 
   <script>
     let currentRefs = [];
@@ -328,16 +400,159 @@
       const detailEl = document.getElementById('itemDetail');
       if (!ref) {
         detailEl.innerHTML = '<div class="detail-empty">Select a reference item to view its content</div>';
+        updateSelectionState();
         return;
       }
       const bodyHtml = ref.html || `<pre>${escapeHtml(ref.text || ref.summary || '(no content)')}</pre>`;
       detailEl.innerHTML = `
         <div class="detail-header">
-          <strong class="detail-id">${escapeHtml(ref.id)}</strong>
-          <span class="detail-path">${escapeHtml(formatPath(ref))}</span>
+          <div class="detail-header-left">
+            <strong class="detail-id">${escapeHtml(ref.id)}</strong>
+            <span class="detail-path">${escapeHtml(formatPath(ref))}</span>
+          </div>
+          <button type="button" id="addToChatBtn" class="add-to-chat-btn" title="Add selected text or reference to chat context">
+            Add to Chat
+          </button>
         </div>
         <div class="markdown-body">${bodyHtml}</div>
       `;
+      const btn = document.getElementById('addToChatBtn');
+      if (btn) {
+        btn.addEventListener('click', () => addContextToChat());
+      }
+      updateSelectionState();
+    }
+
+    async function addContextToChat(customText) {
+      const activeRef = currentRefs.find(r => r.id === selectedId);
+      if (!activeRef) return;
+
+      const sel = window.getSelection();
+      const selectedText = (customText !== undefined && typeof customText === 'string')
+        ? customText
+        : (sel ? sel.toString().trim() : '');
+
+      const textToUse = selectedText || activeRef.text || activeRef.summary || '';
+      if (!textToUse) return;
+
+      const path = formatPath(activeRef);
+      const pathPart = path ? ` (${path})` : '';
+      const lines = textToUse.split(/\r?\n/).map(l => `> ${l}`).join('\n');
+      const formatted = `\n> **[${activeRef.id}]**${pathPart}:\n${lines}\n\n`;
+
+      // 1. Post message to host / parent window (Antigravity webview auxiliary pane)
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({
+            type: 'add-chat-context',
+            payload: {
+              text: formatted,
+              raw: textToUse,
+              refId: activeRef.id,
+              file: activeRef.file,
+              line: activeRef.line
+            }
+          }, '*');
+          window.parent.postMessage({
+            type: 'insert-prompt',
+            payload: { text: formatted }
+          }, '*');
+        }
+      } catch (e) {
+        console.warn('Failed to postMessage:', e);
+      }
+
+      // 2. Antigravity Agent API sendMessage if available
+      if (window.sidecar?.agent?.sendMessage && typeof window.sidecar.agent.sendMessage === 'function') {
+        try {
+          window.sidecar.agent.sendMessage(`Reference context [${activeRef.id}]:\n\n${formatted}`).catch(() => {});
+        } catch {}
+      }
+
+      // 3. Copy to clipboard
+      let copied = false;
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(formatted);
+          copied = true;
+        }
+      } catch {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = formatted;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          copied = true;
+        } catch {}
+      }
+
+      const floatingBtn = document.getElementById('floatingQuoteBtn');
+      if (floatingBtn) floatingBtn.style.display = 'none';
+
+      const msg = selectedText
+        ? `Selection from [${activeRef.id}] added to chat${copied ? ' (copied)' : ''}`
+        : `[${activeRef.id}] added to chat${copied ? ' (copied)' : ''}`;
+      showToast(msg);
+    }
+
+    let toastTimeout;
+    function showToast(text) {
+      const toast = document.getElementById('toast');
+      if (!toast) return;
+      toast.textContent = text;
+      toast.classList.add('show');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2500);
+    }
+
+    function updateSelectionState() {
+      const sel = window.getSelection();
+      const text = sel ? sel.toString().trim() : '';
+      const floatingBtn = document.getElementById('floatingQuoteBtn');
+      const headerBtn = document.getElementById('addToChatBtn');
+
+      if (headerBtn) {
+        headerBtn.textContent = text ? 'Add Selection to Chat' : 'Add to Chat';
+      }
+
+      if (text && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const detailEl = document.getElementById('itemDetail');
+        if (detailEl && (detailEl.contains(range.commonAncestorContainer) || detailEl === range.commonAncestorContainer)) {
+          const rect = range.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            if (floatingBtn) {
+              const top = Math.max(8, rect.top - 34);
+              const left = Math.max(8, Math.min(window.innerWidth - 120, rect.left + (rect.width / 2) - 55));
+              floatingBtn.style.top = `${top}px`;
+              floatingBtn.style.left = `${left}px`;
+              floatingBtn.style.display = 'block';
+            }
+            return;
+          }
+        }
+      }
+      if (floatingBtn) floatingBtn.style.display = 'none';
+    }
+
+    document.addEventListener('selectionchange', updateSelectionState);
+    document.addEventListener('mouseup', () => setTimeout(updateSelectionState, 10));
+    document.addEventListener('keyup', () => setTimeout(updateSelectionState, 10));
+
+    const floatingBtn = document.getElementById('floatingQuoteBtn');
+    if (floatingBtn) {
+      floatingBtn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+      });
+      floatingBtn.addEventListener('click', () => {
+        addContextToChat();
+      });
     }
 
     function escapeHtml(str) {

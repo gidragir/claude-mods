@@ -151,3 +151,13 @@ test('resolveRefs: custom prefixes replace the default set', async () => {
   const r = await resolveRefs(fs, 'c', ['BUG-001'], '', [], { BUG: 'bugs' })
   expect(r[0]?.file).toBe('c/features/X-1/bugs/b.md')
 })
+
+test('findIds and extractSection: custom prefixes with >4 characters (e.g. TICKET, STORY)', () => {
+  const ids = findIds('Found TICKET-123 and STORY-42', { TICKET: 'tickets', STORY: 'stories' })
+  expect(ids).toEqual(['TICKET-123', 'STORY-042'])
+
+  const md = '# Tickets\n\n### TICKET-123: Important bug\nDetails of the ticket.\n\n### TICKET-124: Other'
+  const section = extractSection(md, 'TICKET-123')
+  expect(section).toBeDefined()
+  expect(section?.text.includes('Important bug')).toBe(true)
+})
