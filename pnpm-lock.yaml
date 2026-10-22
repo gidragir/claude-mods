@@ -167,6 +167,9 @@ catalogs:
     '@biomejs/biome':
       specifier: 2.5.15
       version: 2.5.15
+    '@types/bun':
+      specifier: ^1.4.3
+      version: 1.4.3
     typescript:
       specifier: ^7.0.2
       version: 7.0.2
@@ -174,14 +177,16 @@ catalogs:
 importers:
 
   .:
-    dependencies:
-      esbuild:
-        specifier: ^0.28.2
-        version: 0.28.2
     devDependencies:
       '@biomejs/biome':
         specifier: 'catalog:'
         version: 2.5.15
+      '@gidragir/bifrost':
+        specifier: workspace:*
+        version: link:packages/bifrost
+      '@types/bun':
+        specifier: 'catalog:'
+        version: 1.4.3
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.5
@@ -194,14 +199,6 @@ importers:
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
-
-  packages/claude-code: {}
-
-  packages/ui:
-    devDependencies:
-      typescript:
-        specifier: 'catalog:'
-        version: 7.0.2
 
   plugins/quote-comments: {}
 
@@ -422,6 +419,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@types/bun@1.4.3':
+    resolution: {integrity: sha512-N67Pqy8JXbAY/j0tNraS3V5mubGvc6rrrNDmDCtZLlFzccbUJPDb0tvgUBC5q4m8ybkP93Jcn1QB+RYQ6PvBhw==}
+
   '@types/node@26.6.5':
     resolution: {integrity: sha512-uMzsv9stDdofIZBx4UGh4Z9ZgXnGC9seRDscilBcTHAeOFk67MZg/k9bWVfO+bk4qZmG+l52hRnLwUiH2LnJTg==}
 
@@ -544,6 +544,9 @@ packages:
     engines: {node: '>=16.20.0'}
     cpu: [x64]
     os: [win32]
+
+  bun-types@1.4.3:
+    resolution: {integrity: sha512-tinRJNGOmUN+tEAsn2y2e942n9JHRHR42iUYzDH75NmhJqVBokGSQkkfSFdNWwsANIdrK6ACH9t01M452YyTwg==}
 
   esbuild@0.28.2:
     resolution: {integrity: sha512-HKVLS8dvII+xoKW9kmqxbRKrnWEXfJJr/FZhhJmiqIB0e053QNYFqOBouTMO/k5sID4MvCiUCvv8b9M4h32wIA==}
@@ -673,6 +676,10 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
+  '@types/bun@1.4.3':
+    dependencies:
+      bun-types: 1.4.3
+
   '@types/node@26.6.5':
     dependencies:
       undici-types: 8.9.0
@@ -736,6 +743,11 @@ snapshots:
 
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
+
+  bun-types@1.4.3:
+    dependencies:
+      '@types/node': 26.6.5
+      undici-types: 8.9.0
 
   esbuild@0.28.2:
     optionalDependencies:

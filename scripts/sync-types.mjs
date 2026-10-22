@@ -1,7 +1,7 @@
 // pnpm types:sync [-- --from=<dir-or-file>]
 // Vendors the engine's API declarations into types/engine/, picking the newest
 // Claude Code version found among:
-//   1. plugins/*/.claude-plugin/types/            (laid by the engine on load/reload: API + tools + MCP)
+//   1. plugins/*/dist/.claude-plugin/types/          (laid by the engine on load/reload: API + tools + MCP)
 //   2. ~/.claude/dev-mods/*/*/.claude-plugin/types/
 //   3. <tmp>/claude/bundled-skills/*/*/plugin-authoring/types/claude-code.d.ts  (written when the skill loads)
 import { copyFileSync, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs'
@@ -25,7 +25,7 @@ function candidates() {
     const v = typesVersion(api)
     if (v) out.push({ kind: 'laid', dir, version: v, mtime: statSync(api).mtimeMs })
   }
-  for (const p of subdirs(PLUGINS)) laid(join(p, '.claude-plugin', 'types'))
+  for (const p of subdirs(PLUGINS)) laid(join(p, 'dist', '.claude-plugin', 'types'))
   for (const s of subdirs(join(homedir(), '.claude', 'dev-mods'))) for (const m of subdirs(s)) laid(join(m, '.claude-plugin', 'types'))
   for (const ver of subdirs(join(tmpdir(), 'claude', 'bundled-skills')))
     for (const h of subdirs(ver)) {

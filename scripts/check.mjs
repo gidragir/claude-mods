@@ -1,11 +1,25 @@
-// pnpm check [-- <mod> ...] [--only=validate,tsc,test] [--bail]
-// For each mod: `claude plugin validate`, `tsc -p`, `claude plugin test`.
-import { existsSync, readdirSync } from 'node:fs'
+// pnpm check [-- <mod> ...] [--only=build,validate,tsc,test] [--bail]
+// For each mod: `bifrost build`, `claude plugin validate dist`, `tsc -p` (source), `claude plugin test dist`.
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { c, claudeVersion, ENGINE_TYPES, listMods, modDir, nameClashes, parseArgs, printClashes, ROOT, run, typesVersion } from './lib.mjs'
+import {
+  bifrost,
+  c,
+  claudeVersion,
+  distDir,
+  ENGINE_TYPES,
+  listMods,
+  modDir,
+  nameClashes,
+  parseArgs,
+  printClashes,
+  ROOT,
+  run,
+  typesVersion,
+} from './lib.mjs'
 
 const { flags, rest } = parseArgs()
-const steps = typeof flags.only === 'string' ? flags.only.split(',') : ['validate', 'tsc', 'test']
+const steps = typeof flags.only === 'string' ? flags.only.split(',') : ['build', 'validate', 'tsc', 'test']
 const mods = listMods(rest)
 const TSC = join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc')
 
@@ -26,36 +40,28 @@ if (steps.includes('tsc')) {
 
 if (steps.includes('validate')) printClashes(nameClashes(mods))
 
-const hasTests = dir => {
-  const walk = d =>
-    readdirSync(d, { withFileTypes: true }).some(e =>
-      e.isDirectory() ? e.name !== '.claude-plugin' && e.name !== 'node_modules' && walk(join(d, e.name)) : /\.test\.tsx?$/.test(e.name),
-    )
-  return walk(dir)
-}
-
 const results = []
 for (const mod of mods) {
-  const dir = modDir(mod)
+  const dist = distDir(mod)
   console.log(c.bold(c.cyan(`\n━━ ${mod}`)))
   for (const step of steps) {
     let code
-    if (step === 'validate') code = run('claude', ['plugin', 'validate', dir])
+    if (step === 'build') code = bifrost('build', [mod])
+    else if (step === 'validate') code = run('claude', ['plugin', 'validate', dist])
     else if (step === 'tsc') {
-      if (!existsSync(join(dir, 'tsconfig.json'))) {
-        console.log(c.red('no tsconfig.json'))
-        code = 1
-      } else code = run(process.execPath, [TSC, '-p', dir])
+      // the plugin's code, then its tests (test/tsconfig.json adds Bun's types)
+      const tests = join(modDir(mod), 'test', 'tsconfig.json')
+      code = run(process.execPath, [TSC, '-p', modDir(mod)]) || (existsSync(tests) ? run(process.execPath, [TSC, '-p', tests]) : 0)
     } else if (step === 'test') {
-      if (!hasTests(dir)) {
-        console.log(c.yellow('no *.test.ts — skipped'))
+      if (!existsSync(join(dist, 'tests'))) {
+        console.log(c.yellow('no test/engine/*.ts — skipped'))
         results.push({ mod, step, status: 'skip' })
         continue
       }
-      code = run('claude', ['plugin', 'test', dir])
+      code = run('claude', ['plugin', 'test', dist])
     } else throw new Error(`unknown step ${step}`)
     results.push({ mod, step, status: code === 0 ? 'ok' : 'fail' })
-    if (code !== 0 && flags.bail) break
+    if (code !== 0 && (flags.bail || step === 'build')) break
   }
 }
 

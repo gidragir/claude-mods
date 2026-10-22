@@ -1,5 +1,5 @@
 // pnpm new <mod-name> ["one-line description"]
-// Scaffolds plugins/<mod-name>/ from templates/mod and refreshes the marketplace.
+// Scaffolds plugins/<mod-name>/ from templates/mod, builds it and refreshes the marketplace.
 // Linking (dev:link*) stays a separate, explicit step.
 import { cpSync, existsSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -44,7 +44,6 @@ fill(dir)
 console.log(c.green(`✔ plugins/${name} created`))
 
 run(process.execPath, [join(ROOT, 'scripts', 'marketplace.mjs')])
-run('pnpm', ['install', '--silent'], { cwd: ROOT })
 
 // Never re-link automatically: dev-link would override a deliberate subset and
 // ~/.claude/settings.json is global (AGENTS.md: only with the user's explicit consent). Just hint.
@@ -52,7 +51,7 @@ const plugins = join(ROOT, 'plugins')
 const links = [
   { file: join(ROOT, 'mise.local.toml'), needle: plugins, cmd: 'pnpm dev:link' },
   { file: join(homedir(), '.claude', 'settings.json'), needle: plugins.replaceAll('\\', '\\\\'), cmd: 'pnpm dev:link:desktop' },
-  { file: join(homedir(), '.gemini', 'config', 'plugins'), needle: '', cmd: 'pnpm dev:link:gemini' },
+  { file: join(homedir(), '.gemini', 'config', 'plugins'), needle: '', cmd: 'pnpm dev:link:agy' },
 ]
 for (const l of links)
   if (existsSync(l.file) && (!l.needle || readFileSync(l.file, 'utf8').includes(l.needle)))
@@ -60,12 +59,8 @@ for (const l of links)
 
 console.log(`
 Next steps:
-  Claude Code:
-    ${c.cyan(`plugins/${name}/hooks/register.tsx`)}   implement function hooks
-    ${c.cyan(`pnpm check ${name}`)}                  validate + typecheck + test
-    ${c.cyan('pnpm dev:link:desktop')}                load in Claude Desktop with hot reload
-
-  Google Antigravity:
-    ${c.cyan(`plugins/${name}/sidecars/${name}/`)}    add sidecar.json, server.mjs, and webview UI
-    ${c.cyan('pnpm test:sidecar')}                    run sidecar test suite
-    ${c.cyan('pnpm dev:link:gemini')}                 link into ~/.gemini/config for Auxiliary Pane`)
+  ${c.cyan(`plugins/${name}/src/plugin.tsx`)}   panes, commands, state: one UI for Claude Code and Antigravity
+  ${c.cyan(`pnpm dev ${name}`)}                  build and rebuild on save (linked sessions hot-reload)
+  ${c.cyan(`cd plugins/${name} && bun test`)}    logic and UI tests in milliseconds
+  ${c.cyan(`pnpm check ${name}`)}                build + validate + typecheck + engine tests
+  ${c.cyan('pnpm dev:link:desktop')} / ${c.cyan('pnpm dev:link:agy')}   load it in Claude Desktop / Antigravity`)

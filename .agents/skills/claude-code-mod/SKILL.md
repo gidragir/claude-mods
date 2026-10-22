@@ -1,107 +1,49 @@
 ---
 name: claude-code-mod
-description: Develop, debug, and optimize Claude Code plugin adapters and TUI panes. Use when implementing hooks/register.tsx, designing terminal master-detail interfaces, handling Claude Code sandbox constraints, IPC budgets, or state management.
+description: Claude Code engine specifics for Bifrost plugins - the hooks-module scanner rules as they affect plugin code, sandbox and heartbeat budget, TUI surfaces, and the raw src/claude.ts escape hatch. Use when a plugin fails claude plugin validate/test, when adding Claude-only behaviour, or when debugging a pane in the terminal/desktop/VS Code.
 ---
 
-# Claude Code Plugin Adapter Guide
+# Claude Code side of a plugin
 
-This skill guides you through implementing the Claude Code adapter (`hooks/register.tsx`), styling interactive terminal UI (TUI) panes, managing state, and adhering to engine sandbox constraints.
+Plugins do not write a hooks module: `bifrost build` generates `dist/hooks/index.js` from
+`src/plugin.tsx`. This skill explains what that module must satisfy and where to look when it does not.
 
-## 1. Adapter Implementation (`hooks/register.tsx`)
+## Engine rules and your plugin
 
-Use `defineClaudePlugin` from `@gidragir/bifrost/server` to wrap the plugin lifecycle:
+The engine scans the hooks module before running it (`claude plugin validate dist` prints the scan). The
+generated module keeps the scanner's rules as long as plugin code keeps these:
 
-```tsx
-import { defineClaudePlugin } from '@gidragir/bifrost/server'
-import { processItems } from './core.ts'
-import { Pane } from './ui.tsx'
+| Plugin rule | Scan error when broken |
+| --- | --- |
+| `atom('key', …)` at module level; `useState('key', …)` with a literal key | state key "not declared", atom "the scan cannot read" |
+| Only `@gidragir/bifrost` and own files imported; no `claude-code`, Node or DOM | load or sandbox errors |
 
-export const register = defineClaudePlugin((on, { host, fs, getState, setState }) => {
-  // 1. Session start
-  on('session.start', async (event, next) => {
-    return next(event)
-  })
+If the scan fails while the plugin keeps these rules, the generated module is at fault: that is a framework
+bug, reported to the user as a framework task ([packages/bifrost/AGENTS.md](../../../packages/bifrost/AGENTS.md)),
+not patched from the plugin.
 
-  // 2. Prompt guard with error boundary
-  on('prompt.submit', async (event, next) => {
-    // Inspect or enrich user prompt text
-    return next(event)
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: 'Execution failed' }))
+## Runtime
 
-  // 3. Register Slash Command
-  host.slashCommand.register({
-    name: 'mymod',
-    description: 'Open interactive TUI pane',
-    handler: async (args) => {
-      await host.ui.open('mymod-pane')
-    },
-  })
+- Sandbox: no Node, no DOM, no timers; plugin code only uses the `Host`.
+- ~5000 ms heartbeat: keep handlers bounded (single pass over files, `boundTraversalByRecency`).
+- Surfaces: `terminal`, `desktop`, `vscode`, `mobile`. `useViewport().surface` tells which; `canInput` is
+  false on mobile (`Field` shows its fallback). VS Code shares no chat selection: offer a paste field.
+- Pane width: `useViewport().columns` is the pane body; `wide` from 90 columns (`MasterDetail` switches
+  between split and drill-down by it).
+- State lives in engine atoms: it survives hot reload, not a new session.
+- Claude-only events: `claude.sessionStart`, `promptSubmit`, `turnComplete` (`agentId` set for subagent
+  turns), `configChange` (also updates `host.config`).
 
-  // 4. Mount TUI Pane
-  on('ui.render', async (event, next) => {
-    if (event.requestId === 'mymod-pane') {
-      return next({
-        ...event,
-        element: <Pane host={host} fs={fs} />,
-      })
-    }
-    return next(event)
-  })
-})
-```
+## Escape hatch: `src/claude.ts`
 
----
+For engine features the framework does not model (tools, other events), add `src/claude.ts` exporting a
+raw `register`. The build bundles it as `dist/hooks/raw.js` next to the generated module. In that file the
+engine rules above apply to you directly: literal `on` names, literal atoms, `$` only at call sites, and
+a `types` contract entry for any state key it uses (prefer keeping state in the main plugin).
 
-## 2. Sandbox Constraints & Watchdog Budget
+## Debugging
 
-The Claude Code worker sandbox is monitored by a **~5000ms host heartbeat watchdog**. Exceeding this budget or throwing unhandled errors terminates the plugin process.
-
-### Critical Rules
-1. **Single-Pass Resolution**: Extract, parse, and construct data items in a single pass over the filesystem. Never discover IDs in pass 1 and re-read the disk in pass 2.
-2. **Inspect Existing Paths Only**: Never probe permutations of non-existent paths. Query actual directories once via `$.fs.list` and filter entries in-memory.
-3. **Bound Directory Traversals**: Always cap directory searches using `boundTraversalByRecency` (e.g., top 10 or 30 most recent files sorted by `mtimeMs` descending).
-4. **Guard Host RPCs**: Wrap host IPC calls (`$.fs.read()`, `$.ui.open()`, `$.state.set()`, `$.ui.selection()`) with `.catch()` to prevent host rejections from crashing the worker.
-5. **Dynamic Config Verification**: Check `row.value.trim() !== ''` when reading `$.config.list()` to prevent default empty strings from shadowing fallbacks.
-
----
-
-## 3. TUI Layout & Element Constraints
-
-Claude Code TUI panes render using native Flexbox primitives (`Box`, `Text`, `Button`, `Input`):
-
-### `<Button>` Child Invariant
-- **Strict Rule**: A `<Button>` accepts **only string children or `<Text>` elements**.
-- **Never nest `<Box>` inside `<Button>`**: The engine parser will throw a layout exception.
-- Wrap cards externally:
-  ```tsx
-  <Box borderStyle="round" borderColor={isSelected ? 'cyan' : undefined} paddingX={1} flexDirection="column">
-    <Button variant={isSelected ? 'primary' : 'secondary'} onPress={() => handleSelect(id)}>
-      <Text bold={isSelected}>{id}</Text>
-    </Button>
-  </Box>
-  ```
-
-### Safe `<Input>` Resolution
-- Not all Claude Code runtime surfaces support `Input` (e.g., mobile).
-- Safely resolve inputs:
-  ```typescript
-  const elements = host.ui.resolve(e)
-  const Input = 'Input' in elements ? elements.Input : undefined
-  ```
-
-### Adaptive Split View
-Branch on `props.bodyColumns >= 90`:
-- **Split View ($\ge 90$)**: Left card sidebar (`width={36}`), right markdown detail pane (`flexGrow={1}`).
-- **Master-Detail ($< 90$)**: Overview list with drill-down detail view and back navigation (`← Overview (b)`).
-- **Keyboard Shortcuts**: Use single lowercase letters:
-  - `p` / `n`: Previous / Next item
-  - `b`: Back to overview
-  - `c`: Clear search filter
-
----
-
-## 4. State Management
-
-- **`$.state`**: Ephemeral UI state (active tab, search filter, selected card). Survives hot reload within a session.
-- **`$.store`**: Persistent state across sessions.
-- **Module-level variables**: Reset on plugin hot reload; do not rely on global variables for persistent state.
+- `pnpm check <mod>`: build, validate (scan output), `tsc`, engine tests.
+- Load problems show as a dim line in the transcript; `claude --debug` for details.
+- Engine tests in `test/engine/*.ts` (`claude-code/testing`): `$.command.run`, `$.ui.mount({ plugin,
+  component: 'Pane', requestId, surface, props })`, `ui.press/input/find` by element `key`.

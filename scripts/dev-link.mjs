@@ -1,10 +1,12 @@
 // pnpm dev:link [-- <mod> ...]          mise.local.toml: `claude` started from a terminal in this repo
 // pnpm dev:link:desktop [-- <mod> ...]  ~/.claude/settings.json env: every new Claude Desktop session
-// pnpm dev:unlink | dev:unlink:desktop  remove this repo's mods
-// pnpm dev:status                       show both
+// pnpm dev:link:agy [-- <mod> ...]      ~/.gemini/config junctions: Google Antigravity (agy)
+// pnpm dev:unlink | dev:unlink:desktop | dev:unlink:agy   remove this repo's mods
+// pnpm dev:status                       show all three
 //
-// Both set:
-//   CLAUDE_CODE_PLUGIN_DIRS       each mod folder, loaded exactly as `--plugin-dir`
+// Every target links the built plugin, plugins/<mod>/dist (built first when missing); keep
+// `pnpm dev` running to rebuild on save. Claude targets set:
+//   CLAUDE_CODE_PLUGIN_DIRS       each mod's dist folder, loaded exactly as `--plugin-dir`
 //   CLAUDE_CODE_PLUGIN_DIR_WATCH  =1 (only if unset) so long-lived headless sessions (Desktop, SDK) hot-reload on save
 // settings.json: one dated backup per day (settings.json.<date>.bak), atomic write, refuses a non-JSON file.
 // Claude Desktop does not inherit the shell's mise env, hence the separate --desktop target.
@@ -15,12 +17,13 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, readlinkSync, rmSync
 import { homedir } from 'node:os'
 import { delimiter, join, resolve } from 'node:path'
 import {
+  bifrost,
   c,
+  distDir,
   externalPlugins,
   IS_WIN,
   isInside,
   listMods,
-  modDir,
   nameClashes,
   PLUGINS,
   parseArgs,
@@ -105,18 +108,27 @@ function show(t) {
   const env = t.read()
   console.log(c.bold(t.label))
   const dirs = split(env[DIRS])
-  for (const p of dirs) console.log(`  ${inRepo(p) ? c.green('●') : c.dim('○')} ${p}${existsSync(p) ? '' : c.red('  (missing)')}`)
+  const built = new Set(listMods().map(m => norm(distDir(m))))
+  for (const p of dirs) {
+    const mark = !inRepo(p) ? c.dim('○') : built.has(norm(p)) ? c.green('●') : c.yellow('●')
+    const note = !existsSync(p)
+      ? c.red('  (missing)')
+      : inRepo(p) && !built.has(norm(p))
+        ? c.yellow('  (stale: link the dist folder again)')
+        : ''
+    console.log(`  ${mark} ${p}${note}`)
+  }
   if (dirs.length === 0) console.log(c.dim('  (no plugin dirs)'))
   console.log(`  ${WATCH} = ${env[WATCH] ?? c.dim('(unset)')}`)
-  const unlinked = listMods().filter(m => dirs.length > 0 && !dirs.some(p => norm(p) === norm(modDir(m))))
+  const unlinked = listMods().filter(m => dirs.length > 0 && !dirs.some(p => norm(p) === norm(distDir(m))))
   if (unlinked.length > 0) console.log(c.yellow(`  not linked: ${unlinked.join(', ')}`))
 }
 
-const GEMINI_CONFIG = join(homedir(), '.gemini', 'config')
-const GEMINI_PLUGINS = join(GEMINI_CONFIG, 'plugins')
-const GEMINI_SIDECARS = join(GEMINI_CONFIG, 'sidecars')
+const AGY_CONFIG = join(homedir(), '.gemini', 'config')
+const AGY_PLUGINS = join(AGY_CONFIG, 'plugins')
+const AGY_SIDECARS = join(AGY_CONFIG, 'sidecars') // Antigravity's folder name
 
-function geminiTarget(p) {
+function linkTarget(p) {
   try {
     return readlinkSync(p)
   } catch {
@@ -124,79 +136,72 @@ function geminiTarget(p) {
   }
 }
 
-function showGemini() {
+const agyServer = mod => join(distDir(mod), 'sidecars', mod)
+
+function showAgy() {
   console.log(c.bold('~/.gemini/config (Google Antigravity)'))
-  if (!existsSync(GEMINI_CONFIG)) {
+  if (!existsSync(AGY_CONFIG)) {
     console.log(c.dim('  (config dir does not exist)'))
     return
   }
-  const allMods = listMods()
-  console.log(c.cyan('  Plugins:'))
-  for (const mod of allMods) {
-    const linkPath = join(GEMINI_PLUGINS, mod)
-    const target = geminiTarget(linkPath)
-    if (target && isInside(target, PLUGINS)) {
-      console.log(`    ${c.green('●')} ${mod} → ${target}`)
-    } else {
-      console.log(`    ${c.dim('○')} ${mod} (not linked)`)
-    }
-  }
-  console.log(c.cyan('  Sidecars:'))
-  for (const mod of allMods) {
-    const sidecarDir = join(modDir(mod), 'sidecars', mod)
-    if (!existsSync(sidecarDir)) continue
-    const linkPath = join(GEMINI_SIDECARS, mod)
-    const target = geminiTarget(linkPath)
-    if (target && isInside(target, PLUGINS)) {
-      console.log(`    ${c.green('●')} ${mod} → ${target}`)
-    } else {
-      console.log(`    ${c.dim('○')} ${mod} (not linked)`)
+  for (const [label, dir, want] of [
+    ['Plugins', AGY_PLUGINS, distDir],
+    ['Panes (sidecars)', AGY_SIDECARS, agyServer],
+  ]) {
+    console.log(c.cyan(`  ${label}:`))
+    for (const mod of listMods()) {
+      const target = linkTarget(join(dir, mod))
+      if (target && norm(target) === norm(want(mod))) console.log(`    ${c.green('●')} ${mod} → ${target}`)
+      else if (target && isInside(target, PLUGINS))
+        console.log(`    ${c.yellow('●')} ${mod} → ${target} ${c.yellow('(stale: run pnpm dev:link:agy)')}`)
+      else console.log(`    ${c.dim('○')} ${mod} (not linked)`)
     }
   }
 }
 
-if (flags.gemini || flags.antigravity) {
-  const mods = listMods(rest)
-  const isJunction = IS_WIN ? 'junction' : 'dir'
-  if (flags.off) {
-    for (const mod of mods) {
-      const pLink = join(GEMINI_PLUGINS, mod)
-      if (existsSync(pLink) && isInside(geminiTarget(pLink) || '', PLUGINS)) {
-        rmSync(pLink, { recursive: true, force: true })
-        console.log(c.green(`✔ unlinked plugin ${mod}`))
-      }
-      const sLink = join(GEMINI_SIDECARS, mod)
-      if (existsSync(sLink) && isInside(geminiTarget(sLink) || '', PLUGINS)) {
-        rmSync(sLink, { recursive: true, force: true })
-        console.log(c.green(`✔ unlinked sidecar ${mod}`))
-      }
-    }
-  } else {
-    mkdirSync(GEMINI_PLUGINS, { recursive: true })
-    mkdirSync(GEMINI_SIDECARS, { recursive: true })
-    for (const mod of mods) {
-      const pTarget = modDir(mod)
-      const pLink = join(GEMINI_PLUGINS, mod)
-      if (!existsSync(pLink)) {
-        symlinkSync(pTarget, pLink, isJunction)
-        console.log(c.green(`✔ linked plugin ${mod} → ${pLink}`))
-      } else {
-        console.log(c.dim(`plugin ${mod} already linked`))
-      }
+/** Points `link` at `target`; a link of this repo's elsewhere is replaced, anything else is left alone. */
+function junction(link, target, what) {
+  const current = linkTarget(link)
+  if (current && norm(current) === norm(target)) return console.log(c.dim(`${what} already linked`))
+  if (existsSync(link) || current) {
+    if (!current || !isInside(current, PLUGINS)) return console.log(c.yellow(`! ${link} exists and is not this repo's link: left alone`))
+    rmSync(link, { recursive: true, force: true })
+  }
+  symlinkSync(target, link, IS_WIN ? 'junction' : 'dir')
+  console.log(c.green(`✔ linked ${what} → ${link}`))
+}
 
-      const sTarget = join(pTarget, 'sidecars', mod)
-      if (existsSync(sTarget)) {
-        const sLink = join(GEMINI_SIDECARS, mod)
-        if (!existsSync(sLink)) {
-          symlinkSync(sTarget, sLink, isJunction)
-          console.log(c.green(`✔ linked sidecar ${mod} → ${sLink}`))
-        } else {
-          console.log(c.dim(`sidecar ${mod} already linked`))
+const ensureBuilt = mods => {
+  const missing = mods.filter(
+    m => !existsSync(join(distDir(m), 'plugin.json')) && !existsSync(join(distDir(m), '.claude-plugin', 'plugin.json')),
+  )
+  if (missing.length > 0 && bifrost('build', missing) !== 0) process.exit(1)
+}
+
+if (flags.agy) {
+  const mods = listMods(rest)
+  if (flags.off) {
+    for (const mod of mods)
+      for (const [dir, what] of [
+        [AGY_PLUGINS, 'plugin'],
+        [AGY_SIDECARS, 'pane'],
+      ]) {
+        const link = join(dir, mod)
+        if (isInside(linkTarget(link) || '', PLUGINS)) {
+          rmSync(link, { recursive: true, force: true })
+          console.log(c.green(`✔ unlinked ${what} ${mod}`))
         }
       }
+  } else {
+    ensureBuilt(mods)
+    mkdirSync(AGY_PLUGINS, { recursive: true })
+    mkdirSync(AGY_SIDECARS, { recursive: true })
+    for (const mod of mods) {
+      junction(join(AGY_PLUGINS, mod), distDir(mod), `plugin ${mod}`)
+      if (existsSync(agyServer(mod))) junction(join(AGY_SIDECARS, mod), agyServer(mod), `pane ${mod}`)
     }
   }
-  showGemini()
+  showAgy()
   process.exit(0)
 }
 
@@ -207,7 +212,7 @@ if (flags.status) {
     console.log(`  ${c.dim('○')} ${p.source.includes('@') ? p.source : `${p.name} (${p.source})`}`)
   show(mise)
   show(desktop)
-  showGemini()
+  showAgy()
   const clashes = nameClashes(listMods(), external)
   if (clashes.length > 0) {
     console.log(c.bold('Name clashes'))
@@ -227,7 +232,8 @@ if (blocked.length > 0) {
   console.log(c.red(`skipped: ${blocked.join(', ')} — rename the mod or disable the installed plugin (--force links anyway)`))
   mods = mods.filter(m => !blocked.includes(m))
 }
-const next = [...foreign, ...mods.map(modDir)]
+if (!flags.off) ensureBuilt(mods)
+const next = [...foreign, ...mods.map(distDir)]
 const before = JSON.stringify(env)
 if (next.length > 0) env[DIRS] = next.join(delimiter)
 else delete env[DIRS]
@@ -249,3 +255,4 @@ console.log(
       : 'Restart `claude` in this repo (mise activate) to pick it up. For Claude Desktop: pnpm dev:link:desktop',
   ),
 )
+console.log(c.dim('Keep `pnpm dev` running: it rebuilds dist on save and linked sessions hot-reload.'))

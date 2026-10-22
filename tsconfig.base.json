@@ -1,13 +1,13 @@
 {
-  // Options from the header of the engine's claude-code.d.ts. No DOM, no Node:
-  // a hooks module runs in an environment of its own. Each mod extends this and
-  // includes the vendored engine types from ../../types/engine (npm run types:sync).
+  // Plugin code runs in a Claude Code hooks worker (no DOM, no Node) and in the agy server, so it
+  // is written against neither: es2023 only. JSX compiles to Bifrost's neutral element tree.
   "compilerOptions": {
     "target": "es2023",
     "lib": ["es2023"],
     "types": [],
     "module": "esnext",
     "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
@@ -15,8 +15,7 @@
     "noEmit": true,
     "skipLibCheck": true,
     "isolatedModules": true,
-    "jsx": "react",
-    "jsxFactory": "h",
-    "jsxFragmentFactory": "Fragment"
+    "jsx": "react-jsx",
+    "jsxImportSource": "@gidragir/bifrost"
   }
 }

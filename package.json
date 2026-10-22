@@ -2,42 +2,42 @@
   "name": "claude-mods",
   "private": true,
   "type": "module",
-  "description": "Satellite repo for Claude Code mods (function-hook plugins) in TypeScript",
+  "description": "Plugins for Claude Code and Google Antigravity (agy), written once with the Bifrost framework",
+  "author": "gidragir",
+  "license": "MIT",
+  "repository": "https://github.com/gidragir/claude-mods",
   "packageManager": "pnpm@12.14.0",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
     "new": "node scripts/new-mod.mjs",
-    "build": "bun run --filter '*' build",
+    "build": "bun packages/bifrost/src/cli/bin.ts build",
+    "dev": "bun packages/bifrost/src/cli/bin.ts dev",
     "check": "node scripts/check.mjs",
-    "typecheck": "node scripts/check.mjs --only=tsc",
+    "typecheck": "node scripts/check.mjs --only=tsc && tsc -p packages/bifrost",
     "test": "bun test",
-    "test:claude": "node scripts/check.mjs --only=test",
-    "test:sidecar": "node --test packages/*/test/*.test.mjs plugins/*/sidecars/*/test/*.test.mjs",
-    "test:all": "bun test && pnpm test:claude && pnpm test:sidecar",
-    "validate": "node scripts/check.mjs --only=validate",
+    "test:engine": "node scripts/check.mjs --only=build,test",
+    "test:all": "bun test && node scripts/check.mjs",
+    "validate": "node scripts/check.mjs --only=build,validate",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "watch": "node scripts/watch.mjs",
     "types:sync": "node scripts/sync-types.mjs",
-    "ui:sync": "node scripts/sync-ui.mjs",
     "marketplace": "node scripts/marketplace.mjs",
     "dev:link": "node scripts/dev-link.mjs",
     "dev:link:desktop": "node scripts/dev-link.mjs --desktop",
-    "dev:link:gemini": "node scripts/dev-link.mjs --gemini",
+    "dev:link:agy": "node scripts/dev-link.mjs --agy",
     "dev:unlink": "node scripts/dev-link.mjs --off",
     "dev:unlink:desktop": "node scripts/dev-link.mjs --desktop --off",
-    "dev:unlink:gemini": "node scripts/dev-link.mjs --gemini --off",
+    "dev:unlink:agy": "node scripts/dev-link.mjs --agy --off",
     "dev:status": "node scripts/dev-link.mjs --status"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
+    "@gidragir/bifrost": "workspace:*",
+    "@types/bun": "catalog:",
     "@types/node": "^26.6.5",
     "typescript": "catalog:"
-  },
-  "dependencies": {
-    "esbuild": "^0.28.2"
   },
   "workspaces": {
     "packages": [
@@ -46,7 +46,8 @@
     ],
     "catalog": {
       "typescript": "^7.0.2",
-      "@biomejs/biome": "2.5.15"
+      "@biomejs/biome": "2.5.15",
+      "@types/bun": "^1.4.3"
     }
   }
 }

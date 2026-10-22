@@ -1,3 +1,7 @@
+> **Superseded** (2026-10-22) by [the framework design](superpowers/specs/2026-10-22-bifrost-framework-design.md) and
+> [packages/bifrost/README.md](../packages/bifrost/README.md). Kept for history: the names and layout below
+> (`mod.config.ts`, `hooks/register.tsx`, `sidecars/`, `defineClaudePlugin`, `createSidecarApp`) no longer exist.
+
 # Implementation Plan: Bifrost Cross-Harness Framework & Monorepo Migration
 
 ## 1. Goal Description

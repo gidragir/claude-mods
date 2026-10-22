@@ -26,24 +26,25 @@ jobs:
         run: bun install
 
       - name: Run tests
-        run: bun test packages
+        run: bun test
 
       - name: Build @gidragir/bifrost
         run: |
           cd packages/bifrost
           bun run build
 
+      # build.mjs writes a self-contained package (with its own package.json) into dist/
       - name: Configure npm auth
         run: |
-          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > packages/bifrost/.npmrc
-          echo "@gidragir:registry=https://npm.pkg.github.com" >> packages/bifrost/.npmrc
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > packages/bifrost/dist/.npmrc
+          echo "@gidragir:registry=https://npm.pkg.github.com" >> packages/bifrost/dist/.npmrc
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to GitHub npm Registry
         run: |
-          cd packages/bifrost
-          bun publish --registry https://npm.pkg.github.com
+          cd packages/bifrost/dist
+          npm publish --registry https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

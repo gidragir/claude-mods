@@ -1,5 +1,11 @@
+# JSX compiles to Bifrost's neutral element tree (as in tsconfig.base.json)
+jsx = "react-jsx"
+jsxImportSource = "@gidragir/bifrost"
+
 [test]
 timeout = 10000
+# the template's tests run in a scaffolded copy; dist/tests are engine tests (claude plugin test)
+pathIgnorePatterns = ["templates/**", "**/dist/**", "**/node_modules/**"]
 
 [install]
 exact = false

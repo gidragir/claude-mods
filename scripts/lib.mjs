@@ -49,11 +49,11 @@ export function renderTemplate(file, text, name, description) {
   return text.replaceAll('__MOD_NAME__', () => name).replaceAll('__MOD_DESCRIPTION__', () => desc)
 }
 
-/** Mod folders under plugins/ (those with a manifest), optionally filtered by name. */
+/** Mod folders under plugins/ (those with a src/plugin.tsx), optionally filtered by name. */
 export function listMods(names = []) {
   const all = existsSync(PLUGINS)
     ? readdirSync(PLUGINS, { withFileTypes: true })
-        .filter(d => d.isDirectory() && existsSync(join(PLUGINS, d.name, '.claude-plugin', 'plugin.json')))
+        .filter(d => d.isDirectory() && existsSync(join(PLUGINS, d.name, 'src', 'plugin.tsx')))
         .map(d => d.name)
         .sort()
     : []
@@ -64,7 +64,14 @@ export function listMods(names = []) {
 }
 
 export const modDir = name => join(PLUGINS, name)
-export const manifestOf = name => readJson(join(modDir(name), '.claude-plugin', 'plugin.json'))
+/** The built plugin (both harnesses): what dev links, checks and releases use. */
+export const distDir = name => join(modDir(name), 'dist')
+/** The built Claude Code manifest; run `bifrost build` first. */
+export const manifestOf = name => readJson(join(distDir(name), '.claude-plugin', 'plugin.json'))
+
+export const BIFROST_CLI = join(ROOT, 'packages', 'bifrost', 'src', 'cli', 'bin.ts')
+/** `bifrost build|dev <mods>` through Bun (the CLI is TypeScript). */
+export const bifrost = (cmd, mods, opts = {}) => run('bun', [BIFROST_CLI, cmd, ...mods.map(modDir)], opts)
 
 // On Windows `claude`/`pnpm` are .cmd shims and need a shell; the shell gets one quoted
 // command line (passing an args array with shell:true is deprecated, DEP0190).

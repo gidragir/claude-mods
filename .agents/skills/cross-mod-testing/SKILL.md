@@ -1,116 +1,54 @@
 ---
 name: cross-mod-testing
-description: Comprehensive testing, validation, and linting across Bun, Claude Code, and Antigravity. Use when running tests, writing unit/sidecar tests, debugging test runner errors, or validating manifests.
+description: Testing Bifrost plugins - Bun tests with the @gidragir/bifrost/testing kit, engine tests run by claude plugin test against the built plugin, type checking and Biome. Use when writing or running tests, debugging a failing check, or deciding which layer a test belongs to.
 ---
 
-# Cross-Model Testing & Quality Verification Guide
+# Testing
 
-This skill details the hybrid testing strategy for cross-model plugins, covering lightning-fast local testing via **Bun**, host engine integration tests via **Claude Code**, and HTTP sidecar tests via **Node.js**.
+| Layer | Where | Runner | What it covers |
+| --- | --- | --- | --- |
+| Logic | `plugins/<mod>/test/*.test.ts` | `bun test` | pure functions in `src/*.ts` (use `memoryFs` or a hand-written `FsLike`) |
+| Plugin | `plugins/<mod>/test/*.test.tsx` | `bun test` | commands, events, panes through the test kit, in both renderings |
+| Engine | `plugins/<mod>/test/engine/*.ts` | `claude plugin test dist` (`pnpm check`) | the generated hooks module inside the real engine, on several surfaces |
 
-## 1. Hybrid Testing Strategy
+Framework tests (`packages/bifrost/test`) belong to framework work
+([packages/bifrost/AGENTS.md](../../../packages/bifrost/AGENTS.md)). `bun test` from the repository root
+runs every Bun suite (~100 ms); from a plugin folder it runs that plugin's (its `bunfig.toml` ignores `dist/**`, where engine tests are copied).
 
-The repository uses a hybrid test setup to balance speed and fidelity:
+## Test kit (`@gidragir/bifrost/testing`)
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ 1. bun test                                                 │
-│    • Pure core logic (hooks/*.ts)                           │
-│    • HeadlessStore & FsLike state                           │
-│    • SSR Markdown parsing & CLI helpers                     │
-│    • Runs in ~100ms across monorepo                         │
-├─────────────────────────────────────────────────────────────┤
-│ 2. pnpm test:claude (claude plugin test)                    │
-│    • Claude Code sandbox integration (hooks/register.test.ts)│
-│    • Engine hooks ($), slash commands, TUI mounting         │
-├─────────────────────────────────────────────────────────────┤
-│ 3. pnpm test:sidecar (node --test)                          │
-│    • Sidecar HTTP servers & routing                         │
-│    • Preload script & token authentication                  │
-└─────────────────────────────────────────────────────────────┘
-```
+```ts
+import { expect, test } from 'bun:test'
+import { completeTurn, createTestHost, mount, runCommand, submitPrompt } from '@gidragir/bifrost/testing'
+import plugin from '../src/plugin'
 
----
-
-## 2. Test Commands Summary
-
-| Command | Runner | Purpose |
-|---|---|---|
-| `bun test` | Bun | Ultra-fast unit and pure core logic tests (~100ms) |
-| `pnpm test:claude` | Claude CLI | Claude Code engine host tests (`claude plugin test`) |
-| `pnpm test:sidecar` | Node | Sidecar server HTTP & security endpoint tests |
-| `pnpm test:all` | All | Runs `bun test && pnpm test:claude && pnpm test:sidecar` |
-| `pnpm typecheck` | TypeScript | Strict type checking (`tsc -p`) across plugins |
-| `bun run build` | TypeScript | Verifies framework `.d.ts` declaration emit |
-| `pnpm validate` | Claude CLI | Validates `.claude-plugin/plugin.json` and hooks |
-| `pnpm lint` | Biome | Lints and formats all files across the monorepo |
-
----
-
-## 3. The Testing Bridge (`packages/claude-code/testing.js`)
-
-Claude Code tests use:
-```typescript
-import { test, expect, on, $ } from 'claude-code/testing'
-```
-
-### Critical Runner Invariant
-- Tests that inspect or accept engine parameters (e.g. `test('...', ($, { ... }) => { ... })` where `fn.length > 0`) **cannot run in standard Node or Bun without the host engine**.
-- Running them directly causes: `TypeError: undefined is not an object (evaluating '$.command.run')`.
-- The testing bridge in `packages/claude-code/testing.js` automatically skips these tests under `bun test` (`fn.length > 0 -> test.skip`), leaving pure unit tests to execute instantly in Bun, and delegating host tests to `pnpm test:claude`.
-
----
-
-## 4. Claude Code Engine Mock Contracts
-
-When mocking engine operations inside `claude plugin test`:
-
-1. **Wrapped Value Contract**:
-   Hooks intercepting operations on `$` (`fs.list`, `fs.read`, `session.cwd`) **must return an object wrapping `value`**:
-   ```typescript
-   on('fs.list', async (_$, e): Promise<{ value: FsEntry[] }> => ({
-     value: [{ name: 'doc.md', kind: 'file', size: 100, mtimeMs: 1000, isLink: false }]
-   }))
-   ```
-   *Returning raw arrays or objects without `{ value }` causes the engine to skip the mock.*
-
-2. **`FsEntry` Requirements**:
-   Always include `isLink: boolean` (`false`) to satisfy strict TypeScript checking (`TS2741`).
-
-3. **Responsive UI Mount**:
-   Verify both Split and Compact modes via `$.ui.mount` with varying `bodyColumns`:
-   ```typescript
-   // Split view (>= 90 columns)
-   const splitUi = await $.ui.mount({ ...PANE, props: { ...defaultProps, bodyColumns: 100 } })
-
-   // Compact view (< 90 columns)
-   const compactUi = await $.ui.mount({ ...PANE, props: { ...defaultProps, bodyColumns: 80 } })
-   ```
-
----
-
-## 5. Automated Sidecar Testing (`test/*.test.mjs`)
-
-Sidecar tests use `node:test` and `node:assert/strict`:
-
-```javascript
-import { test } from 'node:test'
-import assert from 'node:assert/strict'
-import { createServer } from '../server.mjs'
-
-test('sidecar server enforces token authentication', async () => {
-  const app = createServer({ token: 'secret-token' })
-  const port = await app.listen(0)
-
-  // 1. Missing token -> 401
-  const resUnauth = await fetch(`http://127.0.0.1:${port}/api/items`)
-  assert.equal(resUnauth.status, 401)
-
-  // 2. Valid token -> 200
-  const resAuth = await fetch(`http://127.0.0.1:${port}/api/items`, {
-    headers: { 'X-Sidecar-Token': 'secret-token' }
-  })
-  assert.equal(resAuth.status, 200)
-
-  await app.close()
+test('…', async () => {
+  const host = createTestHost(plugin, { files: { '/ws/features/T-1/review/r.md': '### RV-1 …' }, cwd: '/ws', config: { prefixes: '' } })
+  expect(await runCommand(plugin, 'ref', 'RV-1', { host })).toBe('Refs pane opened.')
+  const ui = await mount(plugin, 'refs', { host, columns: 120 })   // surface/harness/canInput options too
+  host.select('picked text')
+  await ui.press('add-context')
+  expect(host.promptText).toContain('picked text')
+  expect(host.calls.toasts).toEqual([…])
+  expect(ui.html()).toContain('data-bf-id="pick-RV-001"')          // agy rendering
 })
 ```
+
+`mount` drives elements by `key`: `press`, `input` (onInput), `submit` (onSubmit), `select`; `find` /
+`findAll` by `{ key, type, text }`; `text()`; `rerender()`. The host records `calls.toasts`,
+`calls.prompt`, `calls.submitted`, `calls.opened/closed/focused/scrolled`, and keeps `promptText`.
+
+## Engine tests
+
+Files in `test/engine/*.ts` import only `claude-code/testing`; the build copies them to
+`dist/tests/*.test.ts`. Mock host answers with `on('ui.open', () => ({ value: { isPlaced: true } }))`,
+`on('prompt.fill', () => ({ isFilled: true }))`, `on('fs.list'|'fs.read'|'session.cwd', …)`. Mount panes
+with `$.ui.mount({ plugin, component: 'Pane', requestId, surface, props: { bodyColumns, … } })`.
+`$.command.run` needs `origin` and `presentation`.
+
+## Checks
+
+- `pnpm check [mod]`: build → `claude plugin validate dist` → `tsc` (src, then `test/tsconfig.json`) →
+  `claude plugin test dist`.
+- `pnpm typecheck`, `pnpm lint` (Biome), `pnpm test:engine`.
+- `types/engine` must exist for `tsc` (`pnpm types:sync`).

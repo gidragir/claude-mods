@@ -7,8 +7,6 @@
       "Bash(pnpm typecheck *)",
       "Bash(pnpm test)",
       "Bash(pnpm test *)",
-      "Bash(pnpm test:sidecar)",
-      "Bash(pnpm test:sidecar *)",
       "Bash(pnpm test:all)",
       "Bash(pnpm test:all *)",
       "Bash(pnpm validate)",
@@ -26,12 +24,18 @@
       "PowerShell(pnpm check *)",
       "PowerShell(pnpm test)",
       "PowerShell(pnpm test *)",
-      "PowerShell(pnpm test:sidecar)",
-      "PowerShell(pnpm test:sidecar *)",
       "PowerShell(pnpm test:all)",
       "PowerShell(pnpm test:all *)",
       "PowerShell(claude plugin validate *)",
-      "PowerShell(claude plugin test *)"
+      "PowerShell(claude plugin test *)",
+      "Bash(pnpm build)",
+      "Bash(pnpm build *)",
+      "Bash(pnpm test:engine)",
+      "Bash(pnpm test:engine *)",
+      "PowerShell(pnpm build)",
+      "PowerShell(pnpm build *)",
+      "PowerShell(pnpm test:engine)",
+      "PowerShell(pnpm test:engine *)"
     ]
   }
 }

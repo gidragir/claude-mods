@@ -1,6 +1,6 @@
 node_modules/
 # laid by the engine at every load/reload of a mod; the copy for type-checking lives in types/engine (also generated)
-plugins/*/.claude-plugin/types/
+plugins/*/dist/.claude-plugin/types/
 *.log
 .DS_Store
 mise.local.toml
