@@ -1,7 +1,10 @@
 {
   "entries": [
     {
-      "path": "plugins"
+      "path": "plugins/quote-comments/dist"
+    },
+    {
+      "path": "plugins/ref-pane/dist"
     }
   ]
 }
