@@ -1,16 +1,20 @@
 import type { EngineInterface, Register } from 'claude-code'
 import { atom, read, update } from 'claude-code'
 
+import type { Comment, Draft, Editing } from '../types'
 import { appendComments, countLabel, preview } from './comments'
+import { renderCard, renderEmptyState } from './ui'
 
 const COMMAND = 'comment'
 const PANE = 'quote-comments'
 const TITLE = 'Comments'
-const comments = atom({ plugin: 'quote-comments', key: 'comments' } as const, [])
+const comments = atom({ plugin: 'quote-comments', key: 'comments' } as const, [] as Comment[])
 // the selection captured and waiting for its comment
-const draft = atom({ plugin: 'quote-comments', key: 'draft' } as const, null)
+const draft = atom({ plugin: 'quote-comments', key: 'draft' } as const, null as Draft | null)
 // survives hot reload, so ids stay unique within the session
 const nextId = atom({ plugin: 'quote-comments', key: 'nextId' } as const, 1)
+// active comment being edited
+const editing = atom({ plugin: 'quote-comments', key: 'editing' } as const, null as Editing)
 
 const NO_PANE =
   'No selection is shared here and the Comments pane cannot be shown: select text in the chat first (in the terminal this works in fullscreen mode only).'
@@ -25,6 +29,7 @@ const add = async ($: EngineInterface, quote: string, ref: string | undefined, n
 // Where the surface shares no selection (VS Code, the terminal's main screen) the pane asks to paste the quote.
 // Resolves 'saved', 'draft', 'paste', or 'hidden' when no surface placed the pane.
 const capture = async ($: EngineInterface, note: string): Promise<'saved' | 'draft' | 'paste' | 'hidden'> => {
+  await update($, editing, () => null)
   const selected = await $.ui.selection()
   const text = note.trim()
   let kind: 'saved' | 'draft' | 'paste'
@@ -68,6 +73,7 @@ export const register: Register = on => {
     const result = await next({ ...e, text: appendComments(e.text, list) })
     await update($, comments, () => [])
     await update($, draft, () => null)
+    await update($, editing, () => null)
     await $.ui.close({ id: PANE })
     return result
   }).catch((_$, e, next) => next(e))
@@ -79,6 +85,7 @@ export const register: Register = on => {
     const Input = 'Input' in els ? els.Input : undefined
     const list = await read($, comments)
     const pending = await read($, draft)
+    const activeEdit = await read($, editing)
     const width = Math.max(20, e.props.bodyColumns - 24)
 
     // VS Code shares no selection: the button asks for a paste there and puts the cursor in that field
@@ -92,69 +99,186 @@ export const register: Register = on => {
       await update($, draft, () => null)
     }
     const send = async () => {
-      const box = await $.prompt.read()
-      await $.prompt.fill({ text: '', mode: 'replace' })
-      await $.prompt.submit({ text: box.text })
+      const box = await $.prompt.read().catch(() => ({ text: '', cursor: 0 }))
+      const currentList = await read($, comments)
+      const text = appendComments(box.text, currentList)
+      if (text.trim() === '') return
+      await update($, comments, () => [])
+      await update($, draft, () => null)
+      await update($, editing, () => null)
+      if (box.text !== '') await $.prompt.fill({ text: '', mode: 'replace' }).catch(() => undefined)
+      await $.ui.close({ id: PANE }).catch(() => undefined)
+      await $.prompt.submit({ text, asUser: true })
     }
 
     return (
       <Box flexDirection="column">
-        {pending !== null && (
-          <Box flexDirection="column">
-            {pending.quote === '' ? (
-              <Text dimColor>The selection is not shared here: copy the text from the chat and paste it below.</Text>
+        {pending !== null &&
+          renderCard({
+            elements: els,
+            key: 'draft-card',
+            isSelected: true,
+            children: (
+              <Box flexDirection="column">
+                {pending.quote === '' ? (
+                  <Text dimColor>The selection is not shared here: copy the text from the chat and paste it below.</Text>
+                ) : (
+                  <Text dimColor>Commenting on: “{preview(pending.quote, width)}”</Text>
+                )}
+                {Input === undefined ? (
+                  <Text dimColor>This surface takes no input: select the text in the terminal or desktop app.</Text>
+                ) : pending.quote === '' ? (
+                  <Input
+                    key="quote"
+                    autoFocus
+                    rows={3}
+                    placeholder="Paste the quoted text, Enter to continue"
+                    submitLabel="next"
+                    onSubmit={async (value: string) => {
+                      if (value.trim() === '') return
+                      if (pending.note !== undefined) await save(value, pending.note)
+                      else await update($, draft, d => (d === null ? d : { ...d, quote: value }))
+                    }}
+                  />
+                ) : (
+                  <Input
+                    key="note"
+                    autoFocus
+                    placeholder="Your comment, Enter to save"
+                    submitLabel="save"
+                    onInput={(value: string) => update($, draft, d => (d === null ? d : { ...d, note: value }))}
+                    onSubmit={(value: string) => save(pending.quote, value)}
+                  />
+                )}
+                <Box flexDirection="row" gap={1}>
+                  {pending.quote !== '' && (
+                    <Button
+                      key="save"
+                      label="Save"
+                      variant="primary"
+                      onPress={async () => {
+                        const current = await read($, draft)
+                        const noteToSave = (current?.note ?? pending.note ?? '').trim()
+                        if (noteToSave !== '') {
+                          await save(pending.quote, noteToSave)
+                        }
+                      }}
+                    />
+                  )}
+                  <Button key="cancel" label="Cancel" onPress={() => update($, draft, () => null)} />
+                </Box>
+              </Box>
+            ),
+          })}
+        {list.length === 0 &&
+          pending === null &&
+          renderEmptyState(
+            els,
+            isPasteOnly
+              ? 'Copy text from the chat, then press “+ Paste Quote” or run /comment.'
+              : 'Select text in the chat, then press “+ Add Comment” or run /comment.',
+          )}
+        {list.map((c, i) => {
+          const isEditing = activeEdit !== null && activeEdit.id === c.id
+          return renderCard({
+            elements: els,
+            key: `card-${c.id}`,
+            isSelected: isEditing,
+            children: isEditing ? (
+              <Box flexDirection="column">
+                <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+                  <Text>
+                    <Text bold>[{i + 1}]</Text> <Text dimColor>“{preview(c.quote, width)}”</Text>
+                  </Text>
+                  {c.ref !== undefined && (
+                    <Button key={`go-${c.id}`} label="↗ Jump" onPress={() => $.ui.scroll({ to: { requestId: c.ref! }, block: 'center' })} />
+                  )}
+                </Box>
+                {Input === undefined ? (
+                  <Text dimColor>This surface takes no input.</Text>
+                ) : (
+                  <Input
+                    key={`edit-note-${c.id}`}
+                    autoFocus
+                    value={activeEdit.note}
+                    placeholder="Edit comment, Enter to save"
+                    submitLabel="save"
+                    onInput={(val: string) => update($, editing, e => (e === null ? e : { ...e, note: val }))}
+                    onSubmit={async (value: string) => {
+                      const text = value.trim()
+                      if (text !== '') {
+                        await update($, comments, all => all.map(x => (x.id === c.id ? { ...x, note: text } : x)))
+                      }
+                      await update($, editing, () => null)
+                    }}
+                  />
+                )}
+                <Box flexDirection="row" gap={1}>
+                  <Button
+                    key={`save-${c.id}`}
+                    label="Save"
+                    variant="primary"
+                    onPress={async () => {
+                      const current = await read($, editing)
+                      const text = (current?.note ?? activeEdit?.note ?? '').trim()
+                      if (text !== '') {
+                        await update($, comments, all => all.map(x => (x.id === c.id ? { ...x, note: text } : x)))
+                      }
+                      await update($, editing, () => null)
+                    }}
+                  />
+                  <Button key={`cancel-${c.id}`} label="Cancel" onPress={() => update($, editing, () => null)} />
+                </Box>
+              </Box>
             ) : (
-              <Text dimColor>Commenting on: “{preview(pending.quote, width)}”</Text>
-            )}
-            {Input === undefined ? (
-              <Text dimColor>This surface takes no input: select the text in the terminal or desktop app.</Text>
-            ) : pending.quote === '' ? (
-              <Input
-                key="quote"
-                autoFocus
-                rows={3}
-                placeholder="Paste the quoted text, Enter to continue"
-                submitLabel="next"
-                onSubmit={async (value: string) => {
-                  if (value.trim() === '') return
-                  if (pending.note !== undefined) await save(value, pending.note)
-                  else await update($, draft, d => (d === null ? d : { ...d, quote: value }))
-                }}
-              />
-            ) : (
-              <Input
-                key="note"
-                autoFocus
-                placeholder="Your comment, Enter to save"
-                submitLabel="save"
-                onSubmit={(value: string) => save(pending.quote, value)}
-              />
-            )}
-            <Button key="cancel" label="Cancel" onPress={() => update($, draft, () => null)} />
-          </Box>
-        )}
-        {list.length === 0 && pending === null && (
-          <Text dimColor>
-            {isPasteOnly
-              ? 'Copy text from the chat, then press “Paste quote” or run /comment.'
-              : 'Select text in the chat, then press “Comment selection” or run /comment.'}
-          </Text>
-        )}
-        {list.map((c, i) => (
-          <Box key={`row-${c.id}`}>
-            <Text>
-              [{i + 1}] <Text dimColor>“{preview(c.quote, width)}”</Text> {preview(c.note, width)}
-            </Text>
-            {c.ref !== undefined && (
-              <Button key={`go-${c.id}`} label="↗" onPress={() => $.ui.scroll({ to: { requestId: c.ref! }, block: 'center' })} />
-            )}
-            <Button key={`del-${c.id}`} label="✕" onPress={() => update($, comments, all => all.filter(x => x.id !== c.id))} />
-          </Box>
-        ))}
-        <Box>
-          <Button key="pick" label={isPasteOnly ? '💬 Paste quote' : '💬 Comment selection'} hotkey="c" onPress={pick} />
-          {list.length > 0 && <Button key="send" label="Send now" onPress={send} />}
-          {list.length > 0 && <Button key="clear" label="Clear all" onPress={() => update($, comments, () => [])} />}
+              <Box flexDirection="column">
+                <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+                  <Text>
+                    <Text bold>[{i + 1}]</Text> <Text dimColor>“{preview(c.quote, width)}”</Text>
+                  </Text>
+                  {c.ref !== undefined && (
+                    <Button key={`go-${c.id}`} label="↗ Jump" onPress={() => $.ui.scroll({ to: { requestId: c.ref! }, block: 'center' })} />
+                  )}
+                </Box>
+                <Box marginY={0}>
+                  <Text>{c.note}</Text>
+                </Box>
+                <Box flexDirection="row" gap={1}>
+                  <Button
+                    key={`edit-${c.id}`}
+                    label="Edit"
+                    onPress={async () => {
+                      await update($, draft, () => null)
+                      await update($, editing, () => ({ id: c.id, note: c.note }))
+                    }}
+                  />
+                  <Button
+                    key={`del-${c.id}`}
+                    label="Delete"
+                    onPress={async () => {
+                      await update($, comments, all => all.filter(x => x.id !== c.id))
+                      await update($, editing, curr => (curr?.id === c.id ? null : curr))
+                    }}
+                  />
+                </Box>
+              </Box>
+            ),
+          })
+        })}
+        <Box flexDirection="row" gap={1}>
+          <Button key="pick" label={isPasteOnly ? '+ Paste Quote' : '+ Add Comment'} hotkey="c" onPress={pick} />
+          {list.length > 0 && <Button key="send" label="Append all to Chat" variant="primary" onPress={send} />}
+          {list.length > 0 && (
+            <Button
+              key="clear"
+              label="Clear all"
+              onPress={async () => {
+                await update($, comments, () => [])
+                await update($, draft, () => null)
+                await update($, editing, () => null)
+              }}
+            />
+          )}
         </Box>
         {list.length > 0 && <Text dimColor>{countLabel(list.length)} will be appended to your next message.</Text>}
       </Box>

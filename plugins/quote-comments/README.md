@@ -16,7 +16,7 @@ The pane on its own:
 ### With a selection (terminal fullscreen, Claude Desktop)
 
 1. Select text in the chat with the mouse.
-2. Run `/comment` (or press **💬 Comment selection** in the pane). The pane opens with the start of the quote and a
+2. Run `/comment` (or press **+ Add Comment** in the pane). The pane opens with the start of the quote and a
    field for your comment; Enter saves it.
    `/comment <text>` saves the selection with that comment in one go, without stopping at the field.
 3. Repeat for other fragments. Each saved comment becomes a row in the pane.
@@ -28,7 +28,7 @@ The pane on its own:
 Where the chat selection is not shared with mods, the pane asks for the quote instead:
 
 1. Copy the fragment from the chat (Ctrl+C).
-2. Run `/comment` (or press **💬 Paste quote** in the pane). The pane shows a 3-row field "Paste the quoted text, Enter
+2. Run `/comment` (or press **+ Paste Quote** in the pane). The pane shows a 3-row field "Paste the quoted text, Enter
    to continue": paste and press Enter.
 3. The comment field appears; type the comment and press Enter.
 
@@ -65,7 +65,7 @@ We have no maintenance window, it has to be online.
 
 - Each quote is a Markdown blockquote; multi-line quotes keep their lines. Quotes longer than 2000 characters are cut
   with an ellipsis.
-- If the prompt is empty (for example with **Send now** and nothing typed), the message is the block alone.
+- If the prompt is empty (for example with **Append all to Chat** and nothing typed), the message is the block alone.
 - Slash commands and system messages are passed through untouched: the comments wait for your next real message.
 
 ![The sent message with comments](docs/panel-vscode-comment-send.png)
@@ -74,12 +74,13 @@ We have no maintenance window, it has to be online.
 
 | Element | What it does |
 | --- | --- |
-| `[n] “quote” comment` | One saved comment: its number in the message, the start of the quote, the start of the comment |
-| **↗** | Scrolls the transcript to the quoted message (only for quotes taken from a selection) |
-| **✕** | Removes that comment |
-| **💬 Comment selection** / **💬 Paste quote** | Same as `/comment`; the label depends on the surface. Hotkey `c` while the pane has focus |
-| **Cancel** | Drops the quote that is waiting for a comment |
-| **Send now** | Submits whatever is in the prompt box together with the comments |
+| `[n] “quote” comment` | One saved comment card: its number in the message, the start of the quote, and the comment note |
+| **↗ Jump** | Scrolls the transcript to the quoted message (only for quotes taken from a selection) |
+| **Edit** | Opens an input field to modify and update the comment note |
+| **Delete** | Removes that comment |
+| **+ Add Comment** / **+ Paste Quote** | Same as `/comment`; the label depends on the surface. Hotkey `c` while the pane has focus |
+| **Save** / **Cancel** | Confirms or discards the active draft or comment note edit |
+| **Append all to Chat** | Submits whatever is in the prompt box together with the comments |
 | **Clear all** | Drops all collected comments without sending them |
 | `N comments will be appended to your next message.` | Reminder line shown while the list is not empty |
 
@@ -87,10 +88,10 @@ We have no maintenance window, it has to be online.
 
 | Surface | Selection | How you add a quote |
 | --- | --- | --- |
-| Terminal, fullscreen mode | Read by the mod | Select with the mouse, then `/comment` |
-| Terminal, main screen | Belongs to the terminal emulator, not shared | Copy, `/comment`, paste into the pane |
-| Claude Desktop | Supported by the engine | Select, then `/comment` |
-| VS Code extension | Not shared by the client | Copy, `/comment` or **💬 Paste quote**, paste into the pane |
+| Terminal, fullscreen mode | Read by the mod | Select with the mouse, then `/comment` or **+ Add Comment** |
+| Terminal, main screen | Belongs to the terminal emulator, not shared | Copy, `/comment` or **+ Paste Quote**, paste into the pane |
+| Claude Desktop | Supported by the engine | Select, then `/comment` or **+ Add Comment** |
+| VS Code extension | Not shared by the client | Copy, `/comment` or **+ Paste Quote**, paste into the pane |
 | Mobile | — | The pane renders no input field and shows a hint instead |
 
 If no surface can place the pane at all, `/comment` answers with a short text explaining that instead of failing
