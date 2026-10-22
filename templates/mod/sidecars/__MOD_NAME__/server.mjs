@@ -2,28 +2,15 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-// Self-contained imports from vendor/ (updated via pnpm ui:sync)
-import { checkIsMain, createSidecarServer } from './vendor/sidecar-server.mjs'
+import { checkIsMain, createSidecarApp } from '@gidragir/bifrost/server'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const UI_PATH = join(__dirname, 'ui', 'index.html')
 const HTML_CONTENT = existsSync(UI_PATH) ? readFileSync(UI_PATH, 'utf8') : '<h1>__MOD_NAME__</h1>'
 
-const PICO_PATH = join(__dirname, 'ui', 'vendor', 'pico.antigravity.css')
-const CLIENT_PATH = join(__dirname, 'ui', 'vendor', 'client.js')
-
-export const { server, start } = createSidecarServer({
+export const { server, start } = createSidecarApp({
+  name: '__MOD_NAME__',
   uiHtml: HTML_CONTENT,
-  staticFiles: {
-    '/pico.css': {
-      contentType: 'text/css; charset=utf-8',
-      content: existsSync(PICO_PATH) ? readFileSync(PICO_PATH, 'utf8') : '',
-    },
-    '/client.js': {
-      contentType: 'application/javascript; charset=utf-8',
-      content: existsSync(CLIENT_PATH) ? readFileSync(CLIENT_PATH, 'utf8') : '',
-    },
-  },
   routes: {
     '/api/status': (_req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json' })

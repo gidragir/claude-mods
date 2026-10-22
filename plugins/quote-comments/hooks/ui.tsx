@@ -119,6 +119,11 @@ export function renderCard(options: CardOptions): RenderNode {
   )
 }
 
+/**
+ * Component alias for renderCard.
+ */
+export const Card = renderCard
+
 export interface SplitViewOptions<T extends { id: string | number }> {
   elements: { Box: ElementConstructor; Text: ElementConstructor }
   items: T[]

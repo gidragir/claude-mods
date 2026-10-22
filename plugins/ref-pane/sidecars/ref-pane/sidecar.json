@@ -3,7 +3,7 @@
   "args": ["server.mjs"],
   "restart_policy": "always",
   "display_name": "Refs Pane",
-  "description": "Webview auxiliary pane for browsing referenced ticket and review artifacts",
+  "description": "A pane of references like RV-1/FB-2/T-3 from the model reply: shows the ticket artifact section right in the session",
   "has_web_ui": true,
   "ui_config": {
     "views": [

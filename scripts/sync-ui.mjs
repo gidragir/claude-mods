@@ -1,16 +1,11 @@
-// pnpm ui:sync
-// Synchronizes shared UI toolkit files from packages/ui into templates/mod and all plugins,
-// guaranteeing that plugins are 100% self-contained when installed via UI / Marketplaces.
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { c, listMods, modDir, ROOT } from './lib.mjs'
+import { c, listMods, modDir, ROOT, run } from './lib.mjs'
 
-const UI_PKG = join(ROOT, 'packages', 'ui')
-const TUI_SRC = join(UI_PKG, 'tui', 'patterns.tsx')
-const CSS_SRC = join(UI_PKG, 'web', 'pico.antigravity.css')
-const CLIENT_SRC = join(UI_PKG, 'web', 'client.js')
-const SERVER_SRC = join(UI_PKG, 'server', 'sidecar-server.mjs')
-const MD_SRC = join(UI_PKG, 'server', 'markdown.mjs')
+const BIFROST_PKG = join(ROOT, 'packages', 'bifrost')
+const TUI_SRC = join(BIFROST_PKG, 'src', 'ui', 'tui', 'patterns.tsx')
+const CSS_SRC = join(BIFROST_PKG, 'src', 'ui', 'web', 'pico.antigravity.css')
+const CLIENT_SRC = join(BIFROST_PKG, 'dist', 'ui', 'web', 'client.js')
 
 function copySafe(src, dest) {
   if (!existsSync(src)) return false
@@ -27,15 +22,12 @@ export function syncUiToMod(dir, modName) {
     if (copySafe(TUI_SRC, join(hooksDir, 'ui.tsx'))) count++
   }
 
-  // 2. Antigravity Sidecar Webview & Server assets
+  // 2. Antigravity Sidecar Webview assets
   const sidecarDir = join(dir, 'sidecars', modName)
   if (existsSync(sidecarDir)) {
     const webVendor = join(sidecarDir, 'ui', 'vendor')
-    const srvVendor = join(sidecarDir, 'vendor')
     if (copySafe(CSS_SRC, join(webVendor, 'pico.antigravity.css'))) count++
     if (copySafe(CLIENT_SRC, join(webVendor, 'client.js'))) count++
-    if (copySafe(SERVER_SRC, join(srvVendor, 'sidecar-server.mjs'))) count++
-    if (copySafe(MD_SRC, join(srvVendor, 'markdown.mjs'))) count++
   }
   return count
 }
@@ -54,6 +46,13 @@ export function syncAll() {
     const n = syncUiToMod(dir, mod)
     console.log(`  ${c.green('✔')} plugins/${mod} (${n} files)`)
   }
+
+  // 3. Format vendored files to meet repo lint rules
+  run('pnpm', ['biome', 'check', '--write', 'templates/mod/sidecars', 'plugins'], {
+    cwd: ROOT,
+    stdio: 'ignore',
+  })
+
   console.log(c.green('✔ UI sync complete. All plugins are self-contained.'))
 }
 
