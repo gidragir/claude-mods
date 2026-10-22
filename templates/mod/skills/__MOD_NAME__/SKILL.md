@@ -7,6 +7,8 @@ description: __MOD_DESCRIPTION__
 
 __MOD_DESCRIPTION__
 
-## Sidecar UI
-Open the auxiliary pane:
+In Antigravity, surface the pane with a pill:
+
 [Open __MOD_NAME__](sidecar://__MOD_NAME__/)
+
+In Claude Code, `/__MOD_NAME__` opens it.
