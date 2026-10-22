@@ -1,38 +1,20 @@
 {
   "name": "@gidragir/bifrost",
-  "version": "0.1.0",
-  "description": "Cross-harness plugin framework for Claude Code and Google Antigravity",
+  "version": "0.2.0",
+  "description": "Write a plugin once, run it in Claude Code and Google Antigravity (agy)",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "license": "MIT",
   "bin": {
-    "bifrost": "./dist/cli.js"
+    "bifrost": "./src/cli/bin.ts"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
   "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "./server": {
-      "import": "./dist/server.js",
-      "types": "./dist/server.d.ts",
-      "default": "./dist/server.js"
-    },
-    "./ui": {
-      "import": "./dist/ui.js",
-      "types": "./dist/ui.d.ts",
-      "default": "./dist/ui.js"
-    },
-    "./core": {
-      "import": "./dist/core.js",
-      "types": "./dist/core.d.ts",
-      "default": "./dist/core.js"
-    }
+    ".": "./src/index.ts",
+    "./jsx-runtime": "./src/jsx-runtime.ts",
+    "./jsx-dev-runtime": "./src/jsx-dev-runtime.ts",
+    "./claude": "./src/claude/index.ts",
+    "./agy": "./src/agy/index.ts",
+    "./testing": "./src/testing/index.ts",
+    "./cli": "./src/cli/index.ts"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com",

@@ -1,0 +1,6 @@
+{
+  // declarations for the published package (node build.mjs)
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "rootDir": "src", "noEmit": false, "declaration": true, "emitDeclarationOnly": true, "outDir": "dist/types" },
+  "include": ["src", "../../types/engine/claude-code"]
+}

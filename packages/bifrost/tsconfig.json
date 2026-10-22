@@ -1,13 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "declaration": true,
-    "emitDeclarationOnly": true,
-    "noEmit": false,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "lib": ["es2023", "DOM"],
-    "types": ["node"]
+    "lib": ["es2023"],
+    "types": ["bun"]
   },
-  "include": ["src/**/*", "../../types/engine/**/*"]
+  "include": ["src", "test", "../../types/engine/claude-code"]
 }

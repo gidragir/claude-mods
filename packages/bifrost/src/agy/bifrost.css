@@ -1,0 +1,227 @@
+/*
+ * Bifrost webview theme for the Antigravity aux pane. Colors come from the host's theme variables
+ * (--background, --foreground, --muted-foreground, --border, --accent), which preload.js sets inline on
+ * the root on theme-change. Those names (and --muted, --card, --primary…) belong to the host: ours are
+ * all --bf-*, or the inline values would override them (--muted there is a background color).
+ * The bf-* classes mirror the TUI primitives: flex boxes, rounded frames, dim text, compact buttons.
+ */
+
+:root {
+  --bf-bg: var(--background, #1e1e1e);
+  --bf-fg: var(--foreground, #cccccc);
+  --bf-line: var(--border, rgba(128, 128, 128, 0.3));
+  --bf-accent: var(--accent, #3794ff);
+  --bf-muted: var(--muted-foreground, color-mix(in srgb, var(--bf-fg) 60%, transparent));
+  --bf-surface: color-mix(in srgb, var(--bf-fg) 5%, transparent);
+  --bf-surface-strong: color-mix(in srgb, var(--bf-fg) 10%, transparent);
+  --bf-code-bg: color-mix(in srgb, var(--bf-fg) 8%, transparent);
+  --bf-radius: 6px;
+  --bf-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --bf-font-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  /* named TUI colors */
+  --bf-cyan: var(--bf-accent);
+  --bf-blue: var(--bf-accent);
+  --bf-green: #3fb950;
+  --bf-red: #f85149;
+  --bf-yellow: #d29922;
+  --bf-magenta: #bc8cff;
+  --bf-gray: var(--bf-muted);
+  --bf-white: var(--bf-fg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bf-bg);
+  color: var(--bf-fg);
+  font-family: var(--bf-font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+#bf-root {
+  padding: 10px 12px;
+}
+
+.bf-box {
+  display: flex;
+  min-width: 0;
+}
+
+.bf-frame {
+  border: 1px solid var(--bf-line);
+  border-radius: var(--bf-radius);
+  padding-block: 0.35em;
+  background: var(--bf-surface);
+}
+
+.bf-frame-dim {
+  border-color: var(--bf-line);
+}
+
+.bf-card + .bf-card {
+  margin-top: 0.5em;
+}
+
+.bf-detail {
+  min-width: 0;
+  background: transparent;
+}
+
+.bf-header {
+  border-bottom: 1px solid var(--bf-line);
+  padding-bottom: 0.5em;
+}
+
+.bf-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.bf-dim {
+  color: var(--bf-muted);
+}
+
+.bf-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bf-btn {
+  font: inherit;
+  font-size: 12px;
+  color: var(--bf-fg);
+  background: var(--bf-surface-strong);
+  border: 1px solid var(--bf-line);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.bf-btn:hover {
+  border-color: var(--bf-accent);
+}
+
+/* a column stretches its children; buttons keep their own width */
+.bf-col > .bf-btn {
+  align-self: flex-start;
+}
+
+.bf-row > .bf-text {
+  flex-shrink: 1;
+}
+
+.bf-btn:focus-visible,
+.bf-input:focus,
+.bf-select:focus {
+  outline: 1px solid var(--bf-accent);
+  outline-offset: 1px;
+}
+
+.bf-primary {
+  background: var(--bf-accent);
+  border-color: var(--bf-accent);
+  color: #fff;
+}
+
+.bf-input,
+.bf-select {
+  font: inherit;
+  width: 100%;
+  color: var(--bf-fg);
+  background: var(--bf-bg);
+  border: 1px solid var(--bf-line);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+textarea.bf-input {
+  resize: vertical;
+}
+
+.bf-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+  width: 100%;
+}
+
+.bf-md {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.bf-md :is(h2, h3, h4, h5, h6) {
+  margin: 0.6em 0 0.3em;
+  font-size: 13px;
+}
+
+.bf-md p,
+.bf-md ul,
+.bf-md ol {
+  margin: 0 0 0.5em;
+}
+
+.bf-md code,
+.bf-code {
+  font-family: var(--bf-font-mono);
+  font-size: 12px;
+  background: var(--bf-code-bg);
+  border-radius: 3px;
+}
+
+.bf-md code {
+  padding: 0 3px;
+}
+
+.bf-md pre,
+.bf-code {
+  padding: 8px;
+  overflow-x: auto;
+}
+
+.bf-md pre code {
+  padding: 0;
+  background: none;
+}
+
+.bf-md blockquote {
+  margin: 0 0 0.5em;
+  padding-left: 0.75em;
+  border-left: 3px solid var(--bf-line);
+  color: var(--bf-muted);
+}
+
+.bf-md table {
+  border-collapse: collapse;
+  margin-bottom: 0.5em;
+}
+
+.bf-md :is(th, td) {
+  border: 1px solid var(--bf-line);
+  padding: 2px 6px;
+}
+
+a {
+  color: var(--bf-accent);
+}
+
+.bf-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 24px);
+  padding: 6px 12px;
+  border-radius: var(--bf-radius);
+  background: var(--bf-surface-strong);
+  border: 1px solid var(--bf-accent);
+  backdrop-filter: blur(6px);
+  z-index: 10;
+}
