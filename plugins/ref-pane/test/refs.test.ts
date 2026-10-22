@@ -1,6 +1,6 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, test } from 'bun:test'
 
-import { extractSection, findIds, parsePrefixes, resolveRefs, rootsIn } from './refs'
+import { discoverRefs, extractSection, findIds, HOME, parsePrefixes, resolveRefs, rootsIn } from '../src/refs'
 
 test('findIds: RV-1 and RV-001 are the same, ticket TICKET-123 is not a reference', () => {
   expect(findIds('see RV-1, RV-001 and FB-12 for TICKET-123')).toEqual(['RV-001', 'FB-012'])
@@ -160,4 +160,74 @@ test('findIds and extractSection: custom prefixes with >4 characters (e.g. TICKE
   const section = extractSection(md, 'TICKET-123')
   expect(section).toBeDefined()
   expect(section?.text.includes('Important bug')).toBe(true)
+})
+
+test('discoverRefs caps discovered items at 30 and handles missing files gracefully', async () => {
+  const mockFs = {
+    list: async (dir?: string) => {
+      if (dir?.endsWith('/docs')) {
+        return [{ name: 'many.md', kind: 'file' as const, mtimeMs: 1000 }]
+      }
+      return []
+    },
+    read: async () => {
+      // 50 IDs: RV-1 to RV-50
+      return Array.from({ length: 50 }, (_, i) => `### RV-${i + 1}: Item ${i + 1}`).join('\n')
+    },
+  }
+  const discovered = (await discoverRefs(mockFs, '/workspace', [], HOME)).map(r => r.id)
+  expect(discovered.length).toBe(30)
+  expect(discovered[0]).toBe('RV-001')
+  expect(discovered[29]).toBe('RV-030')
+})
+
+test('discoverRefs resolves items directly and sorts features tickets by recency', async () => {
+  const mockFs = {
+    list: async (dir?: string) => {
+      const p = String(dir ?? '')
+      if (p === '/workspace/features') {
+        return [
+          { name: 'OLD-1', kind: 'dir' as const, mtimeMs: 100 },
+          { name: 'NEW-2', kind: 'dir' as const, mtimeMs: 5000 },
+          { name: 'ignore.txt', kind: 'file' as const, mtimeMs: 2000 },
+        ]
+      }
+      if (p === '/workspace/features/NEW-2') {
+        return [
+          { name: 'review', kind: 'dir' as const, mtimeMs: 5000 },
+          { name: 'other_folder', kind: 'dir' as const, mtimeMs: 5000 },
+        ]
+      }
+      if (p === '/workspace/features/NEW-2/review') {
+        return [{ name: 'review.md', kind: 'file' as const, mtimeMs: 5000 }]
+      }
+      if (p === '/workspace/features/OLD-1') {
+        return [{ name: 'review', kind: 'dir' as const, mtimeMs: 100 }]
+      }
+      if (p === '/workspace/features/OLD-1/review') {
+        return [{ name: 'old_review.md', kind: 'file' as const, mtimeMs: 100 }]
+      }
+      return []
+    },
+    read: async (file: string) => {
+      if (file.includes('NEW-2')) {
+        return '# Review\n\n### RV-10: Fresh review finding\nDetails on fresh issue.'
+      }
+      if (file.includes('OLD-1')) {
+        return '# Review\n\n### RV-1: Ancient review finding\nDetails on ancient issue.'
+      }
+      return ''
+    },
+  }
+
+  const refs = await discoverRefs(mockFs, '/workspace', [], HOME)
+  expect(refs.length).toBe(2)
+  // NEW-2 (mtimeMs 5000) should be visited before OLD-1 (mtimeMs 100)
+  expect(refs[0]!.id).toBe('RV-010')
+  expect(refs[0]!.file).toBe('/workspace/features/NEW-2/review/review.md')
+  expect(refs[0]!.line).toBe(3)
+  expect(refs[0]!.text).toContain('Fresh review finding')
+
+  expect(refs[1]!.id).toBe('RV-001')
+  expect(refs[1]!.file).toBe('/workspace/features/OLD-1/review/old_review.md')
 })

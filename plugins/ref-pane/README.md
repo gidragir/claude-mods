@@ -1,6 +1,6 @@
 # ref-pane
 
-A dual-target artifact reference browser for **Claude Code** and **Antigravity**: resolves references like `RV-1`, `FB-2`, `T-3`, `ADR-4` from conversation turns and project docs, displaying the matching artifact section (`features/<TICKET>/…` or `docs/*.md`) with syntax styling.
+An artifact reference browser for **Claude Code** and **Antigravity**, built once with [Bifrost](../../packages/bifrost/README.md): resolves references like `RV-1`, `FB-2`, `T-3`, `ADR-4` from conversation turns and project docs, displaying the matching artifact section (`features/<TICKET>/…` or `docs/*.md`) with syntax styling.
 
 ## Interfaces
 
@@ -19,14 +19,13 @@ A dual-target artifact reference browser for **Claude Code** and **Antigravity**
 - Scans `features` directories (`cwd/features/<TICKET>/...`) and flat documents (`docs/*.md`).
 - Table rows and headings count as definitions (`| D-26 | … |`), while list items count as mentions.
 
-### 2. Antigravity (Auxiliary Pane Sidecar)
+### 2. Antigravity (Auxiliary Pane)
 
-- Integrated webview sidecar (`sidecars/ref-pane/`) running alongside Antigravity.
-- Surface or toggle via sidecar link: `[Refs Pane](sidecar://ref-pane/)` or via the Auxiliary Pane tab.
-- **Server-Side Rendered (SSR) Markdown**: zero-dependency parser converts markdown into sanitized HTML with headings, lists, tables, blockquotes, fenced code blocks, and clickable artifact badges.
-- **Workspace & Theme Synchronization**: automatically picks up IDE color themes and adapts to workspace changes via `sidecar_sdk`.
-- **Live Search & Filter**: instant querying and filtering of reference IDs across project documentation.
-- **Agent Skill & Rules**: accompanied by `skills/ref-pane/` for reference-aware navigation and `rules/AGENTS.md` for artifact citation standards.
+- The same pane in the Auxiliary Pane webview: open it with `[Refs Pane](sidecar://ref-pane/)` or from the pane tab.
+- On open it lists the references defined near the workspace folder; the search box filters them, and Enter resolves the IDs it names.
+- Markdown sections are rendered to sanitized HTML on the server; colors follow the IDE theme.
+- "Add to chat (a)" quotes the text selected in the pane (or the whole section) into the chat prompt.
+- Ships `skills/ref-pane/` (reference-aware navigation) and `rules/AGENTS.md` (artifact citation standards).
 
 ---
 
@@ -41,7 +40,11 @@ A dual-target artifact reference browser for **Claude Code** and **Antigravity**
 
 ### Antigravity
 
-Add the plugin directory to your Antigravity configuration or workspace plugins. The sidecar and skill will be automatically discovered.
+```
+agy plugin install gidragir/claude-mods#release/ref-pane
+```
+
+In Antigravity the prefixes come from the environment variable `REF_PANE_PREFIXES` (same format as below).
 
 ---
 
@@ -63,12 +66,10 @@ RV=review, FB=feedback, BUG=bugs, ADR
 ## Development & Testing
 
 ```bash
-# Claude Code mod check (validate + typecheck + test)
-pnpm check ref-pane
-
-# Antigravity Sidecar tests (HTTP endpoints & SSR markdown renderer)
-pnpm test:sidecar
-
-# Run all tests across the repository
-pnpm test:all
+pnpm dev ref-pane      # build plugins/ref-pane/dist and rebuild on save
+bun test               # from this folder: reference parsing and the pane, ~50 ms
+pnpm check ref-pane    # build + claude plugin validate + tsc + engine tests
 ```
+
+`src/refs.ts` finds and extracts references (pure, files through `FsLike`); `src/store.ts` holds the state
+and actions; `src/ui.tsx` is the pane; `src/plugin.tsx` wires commands, Claude events and config.

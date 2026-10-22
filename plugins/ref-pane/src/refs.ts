@@ -1,15 +1,13 @@
 // Core: find references like RV-1 / Q-L1 in text and pull their section from the features/<TICKET>/ artifacts or from docs/*.md near cwd.
+// Pure: files come through FsLike, so the same code runs in Claude Code ($.fs), agy (node:fs) and tests.
+
+import { boundTraversalByRecency, type FsLike } from '@gidragir/bifrost'
 
 export type Ref = {
   id: string // canonical form: RV-001
   file: string // absolute path to the md file
   line: number // 1-based
   text: string // whole section (truncated)
-}
-
-export type FsLike = {
-  list: (path?: string) => Promise<{ name: string; kind: 'file' | 'dir' | 'other'; mtimeMs: number }[]>
-  read: (path: string) => Promise<string>
 }
 
 // Number: 26, or a lettered form: L1, P21 (Q-L1, Q-P21).
@@ -152,7 +150,7 @@ async function ticketDirs(fs: FsLike, roots: string[], hint: string) {
   const all: { name: string; path: string; mtimeMs: number }[] = []
   for (const root of roots) {
     const entries = await fs.list(root).catch(() => [])
-    for (const e of entries) if (e.kind === 'dir') all.push({ name: e.name, path: `${root}/${e.name}`, mtimeMs: e.mtimeMs })
+    for (const e of entries) if (e.kind === 'dir') all.push({ name: e.name, path: `${root}/${e.name}`, mtimeMs: e.mtimeMs ?? 0 })
   }
   // The ticket name is mentioned as a whole word: TICKET-1230 does not count as a mention of TICKET-123.
   const mentions = (key: string) =>
@@ -264,4 +262,54 @@ export function gistOf(text: string, max = 200): { head: string; gist: string } 
     .replace(/\s+/g, ' ')
   const src = body === '' ? head : body
   return { head: head.slice(0, 90), gist: src.length > max ? `${src.slice(0, max)}…` : src }
+}
+
+const isArtifact = (e: { kind: string; name: string }) =>
+  e.kind === 'file' && e.name.endsWith('.md') && !/_humanized|_presentation/.test(e.name)
+
+/**
+ * Every reference defined in the artifacts near cwd and in known roots, in one pass over the files:
+ * docs/*.md first, then the 10 most recent tickets (their own .md files and the prefix directories).
+ */
+export async function discoverRefs(
+  fs: FsLike,
+  cwd: string | undefined,
+  known: string[],
+  prefixes: Record<string, string>,
+  limit = 30,
+): Promise<Ref[]> {
+  const out: Ref[] = []
+  const seen = new Set<string>()
+  /** Adds the sections a folder's .md files define; true once `limit` is reached. */
+  const scan = async (dir: string, entries?: { kind: string; name: string }[]) => {
+    for (const e of (entries ?? (await fs.list(dir).catch(() => []))).filter(isArtifact)) {
+      const file = `${dir}/${e.name}`
+      const content = await fs.read(file).catch(() => '')
+      for (const id of content ? findIds(content, prefixes) : []) {
+        if (seen.has(id)) continue
+        const sec = extractSection(content, id)
+        if (!sec) continue
+        seen.add(id)
+        out.push({ id, file, line: sec.line, text: sec.text })
+        if (out.length >= limit) return true
+      }
+    }
+    return false
+  }
+
+  for (const dir of new Set([...docDirs(cwd), ...known.filter(isDocsRoot)])) if (await scan(dir)) return out
+
+  const cwdFeatures = cwd ? [`${cwd.replaceAll('\\', '/')}/features`] : []
+  const dirNames = new Set(Object.values(prefixes))
+  for (const root of new Set([...known.filter(r => !isDocsRoot(r)), ...cwdFeatures])) {
+    const tickets = (await fs.list(root).catch(() => [])).filter(e => e.kind === 'dir')
+    for (const ticket of boundTraversalByRecency(tickets, e => e.mtimeMs ?? 0, 10)) {
+      const ticketPath = `${root}/${ticket.name}`
+      const children = await fs.list(ticketPath).catch(() => [])
+      if (await scan(ticketPath, children)) return out
+      for (const sub of children.filter(e => e.kind === 'dir' && dirNames.has(e.name)))
+        if (await scan(`${ticketPath}/${sub.name}`)) return out
+    }
+  }
+  return out
 }

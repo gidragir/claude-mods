@@ -2,12 +2,11 @@
   "name": "ref-pane",
   "private": true,
   "type": "module",
-  "description": "A pane of references like RV-1/FB-2/T-3 from the model reply: a click shows the ticket artifact section right in the session",
+  "description": "A pane of references like RV-1/FB-2/T-3 from the model reply: shows the ticket artifact section right in the session",
   "scripts": {
-    "check": "node ../../scripts/check.mjs ref-pane",
-    "typecheck": "node ../../scripts/check.mjs --only=tsc ref-pane",
-    "test": "node ../../scripts/check.mjs --only=test ref-pane",
-    "test:sidecar": "node --test sidecars/*/test/*.test.mjs",
-    "validate": "node ../../scripts/check.mjs --only=validate ref-pane"
+    "build": "bun ../../packages/bifrost/src/cli/bin.ts build .",
+    "dev": "bun ../../packages/bifrost/src/cli/bin.ts dev .",
+    "test": "bun test",
+    "check": "node ../../scripts/check.mjs ref-pane"
   }
 }

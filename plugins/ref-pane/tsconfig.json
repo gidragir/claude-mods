@@ -1,4 +1,5 @@
 {
+  // plugin code runs in a sandbox without Node or DOM: no ambient types here (tests: test/tsconfig.json)
   "extends": "../../tsconfig.base.json",
-  "include": ["hooks", "types", "../../types/engine"]
+  "include": ["src"]
 }
