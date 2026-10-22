@@ -3,9 +3,8 @@ name: Release Plugins
 on:
   push:
     tags:
-      - 'ref-pane-v*'
-      - 'quote-comments-v*'
-      - 'plugin-v*'
+      - '*-v*'
+      - '!framework-v*'
   workflow_dispatch:
     inputs:
       plugin:
@@ -19,17 +18,20 @@ permissions:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
-    if: |
-      (github.event_name == 'workflow_dispatch' && inputs.plugin == matrix.plugin) ||
-      (github.event_name == 'push' && startsWith(github.ref, format('refs/tags/{0}-v', matrix.plugin)))
-    strategy:
-      matrix:
-        plugin: [ref-pane, quote-comments]
+    env:
+      # <mod>-v<version> tag → <mod>
+      PLUGIN: ${{ github.event_name == 'workflow_dispatch' && inputs.plugin || '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Resolve the plugin
+        run: |
+          PLUGIN="${PLUGIN:-${GITHUB_REF_NAME%-v*}}"
+          test -f "plugins/$PLUGIN/src/plugin.tsx" || { echo "no plugin $PLUGIN"; exit 1; }
+          echo "PLUGIN=$PLUGIN" >> "$GITHUB_ENV"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -44,22 +46,22 @@ jobs:
 
       # plugins/<mod>/dist is the whole plugin for both harnesses (Claude Code + Antigravity)
       - name: Build the plugin
-        run: bun packages/bifrost/src/cli/bin.ts build "plugins/${{ matrix.plugin }}"
+        run: bun packages/bifrost/src/cli/bin.ts build "plugins/$PLUGIN"
 
       - name: Package Plugin Tarball Asset
         run: |
-          cd "plugins/${{ matrix.plugin }}/dist"
-          tar -czf "../../../${{ matrix.plugin }}.tar.gz" .
+          cd "plugins/$PLUGIN/dist"
+          tar -czf "../../../$PLUGIN.tar.gz" .
 
       - name: Push to Orphan Release Branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          BRANCH_NAME="release/${{ matrix.plugin }}"
+          BRANCH_NAME="release/$PLUGIN"
 
           # Stage compiled plugin files including dotfiles (.claude-plugin)
           TMP_DIR=$(mktemp -d)
-          cp -a "plugins/${{ matrix.plugin }}/dist/." "$TMP_DIR/"
+          cp -a "plugins/$PLUGIN/dist/." "$TMP_DIR/"
           rm -rf "$TMP_DIR/tests" "$TMP_DIR/.claude-plugin/types"
 
           git checkout --orphan "$BRANCH_NAME"
@@ -73,7 +75,7 @@ jobs:
 
           # Force-add dist and all files regardless of .gitignore
           git add -A -f
-          git commit -m "chore(release): release ${{ matrix.plugin }} bundle" || echo "No changes to commit"
+          git commit -m "chore(release): release $PLUGIN bundle" || echo "No changes to commit"
           git push origin "$BRANCH_NAME" --force
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -81,5 +83,5 @@ jobs:
       - name: Upload Tarball Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.plugin }}-bundle
-          path: ${{ matrix.plugin }}.tar.gz
+          name: ${{ env.PLUGIN }}-bundle
+          path: ${{ env.PLUGIN }}.tar.gz
