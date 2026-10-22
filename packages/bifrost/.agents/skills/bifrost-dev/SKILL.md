@@ -53,7 +53,8 @@ plugins is a later, separate plugin task (root AGENTS.md), one commit per plugin
 
 `node packages/bifrost/build.mjs` writes a self-contained package to `packages/bifrost/dist` (ESM bundles,
 `.d.ts`, its own `package.json`, a Node `bifrost` bin). Move `Unreleased` in `CHANGELOG.md` to the new
-version, bump `package.json`, tag `framework-v<version>` (on request):
+version, bump `package.json`, tag `framework-v<version>` (on request), following the repository's
+[`releasing`](../../../../../.agents/skills/releasing/SKILL.md) skill (`pnpm release:check` before any tag):
 `.github/workflows/publish-framework.yml` tests, builds and publishes to the GitHub registry. Inside the
 monorepo plugins resolve `@gidragir/bifrost` to `src`, so they see changes immediately; that is why the
 regression run in step 5 matters.
