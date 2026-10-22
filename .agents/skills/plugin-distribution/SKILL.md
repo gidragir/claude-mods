@@ -1,6 +1,6 @@
 ---
 name: plugin-distribution
-description: Load, release and publish Bifrost plugins - dev links for terminal Claude, Claude Desktop and Antigravity, the release/<mod> branches built by CI, and the marketplace. Use when linking a plugin for live testing, cutting a plugin release, or changing the plugin release workflow.
+description: Load and distribute Bifrost plugins - dev links for terminal Claude, Claude Desktop and Antigravity, the release/<mod> branches built by CI, and the marketplace. Use when linking a plugin for live testing or changing how plugins are distributed; for cutting a release use the releasing skill.
 ---
 
 # Distribution
@@ -25,10 +25,8 @@ foreign plugin dirs stay; a name an installed, enabled plugin uses is skipped (`
 
 ## Releasing a plugin
 
-1. Bump `version` in `definePlugin` (`src/plugin.tsx`).
-2. `pnpm marketplace` (builds, regenerates `.claude-plugin/marketplace.json` and `.agents/plugins.json`).
-3. Commit, push, tag `<mod>-v<version>`.
-4. `.github/workflows/release-plugins.yml` runs `bun test`, builds the plugin and force-pushes `dist`
+Follow [`releasing`](../releasing/SKILL.md): bump, commit, `pnpm release:check`, push `main` alone, then the
+tags, then verify `release/<mod>`. On a `<mod>-v<version>` tag `.github/workflows/release-plugins.yml` runs `bun test`, builds the plugin and force-pushes `dist`
    (without `tests/` and engine-laid types) to the orphan branch `release/<mod>` at its root, plus a
    tarball artifact.
 

@@ -24,6 +24,7 @@
     "format": "biome check --write .",
     "types:sync": "node scripts/sync-types.mjs",
     "marketplace": "node scripts/marketplace.mjs",
+    "release:check": "node scripts/release-check.mjs",
     "dev:link": "node scripts/dev-link.mjs",
     "dev:link:desktop": "node scripts/dev-link.mjs --desktop",
     "dev:link:agy": "node scripts/dev-link.mjs --agy",

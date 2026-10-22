@@ -18,6 +18,7 @@ Antigravity (aux-pane webview, skills, rules).
 | [`agy-pane`](../agy-pane/SKILL.md) | A plugin's Antigravity pane: config, effects, linking, debugging |
 | [`cross-mod-testing`](../cross-mod-testing/SKILL.md) | Bun tests with the test kit, engine tests, typecheck, lint |
 | [`plugin-distribution`](../plugin-distribution/SKILL.md) | Dev links, release branches, marketplace |
+| [`releasing`](../releasing/SKILL.md) | Releasing plugins and the framework: checks, tags, verification, failed runs |
 
 ## Plugin work stays in the plugin
 

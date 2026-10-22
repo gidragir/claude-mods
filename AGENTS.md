@@ -38,6 +38,7 @@ Detailed guidance lives in `.agents/skills/`, read on demand:
 - [`agy-pane`](.agents/skills/agy-pane/SKILL.md): a plugin's Antigravity pane: config, effects, linking, debugging.
 - [`cross-mod-testing`](.agents/skills/cross-mod-testing/SKILL.md): plugin Bun tests, the test kit, engine tests.
 - [`plugin-distribution`](.agents/skills/plugin-distribution/SKILL.md): dev linking, plugin release branches.
+- [`releasing`](.agents/skills/releasing/SKILL.md): releasing plugins and the framework (`pnpm release:check`, tags, verification).
 
 ## Architecture
 
@@ -111,6 +112,7 @@ keeps Antigravity's contract (loopback, port, UI token, preload, effects). Detai
 | `pnpm dev:unlink` / `dev:unlink:desktop` / `dev:unlink:agy` | Remove those links |
 | `pnpm dev:status` | Links, stale links, name clashes |
 | `pnpm marketplace` | Build, then regenerate `.claude-plugin/marketplace.json` and `.agents/plugins.json` |
+| `pnpm release:check` | Before release tags: CI steps on a clean clone, versions vs tags, CHANGELOG, marketplace |
 | `pnpm types:sync` | Refresh `types/engine` from the newest engine-laid declarations |
 
 ## Development workflow
@@ -122,8 +124,8 @@ keeps Antigravity's contract (loopback, port, UI token, preload, effects). Detai
 5. Agent docs: `skills/<mod>/SKILL.md` (with a `[Label](sidecar://<mod>/)` pill) and `rules/AGENTS.md`.
 6. `pnpm lint` and `bun test` with zero errors.
 7. Live: `pnpm dev:link:desktop` / `pnpm dev:link:agy` with `pnpm dev` running.
-8. Release: bump `version` in `definePlugin`, `pnpm marketplace`, commit, tag `<mod>-v<version>` (CI builds
-   `release/<mod>` from `dist`).
+8. Release: by the [`releasing`](.agents/skills/releasing/SKILL.md) skill: bump, `pnpm marketplace`, commit,
+   `pnpm release:check`, push `main`, then tag `<mod>-v<version>` (CI builds `release/<mod>` from `dist`).
 
 ## Pitfalls
 

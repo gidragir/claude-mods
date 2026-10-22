@@ -18,6 +18,7 @@ Antigravity (aux-pane webview, skills, rules).
 | [`agy-pane`](../../.agents/skills/agy-pane/SKILL.md) | The Antigravity adapter: server, page runtime, effects, token, linking |
 | [`cross-mod-testing`](../../.agents/skills/cross-mod-testing/SKILL.md) | Bun tests with the test kit, engine tests, typecheck, lint |
 | [`plugin-distribution`](../../.agents/skills/plugin-distribution/SKILL.md) | Dev links, release branches, marketplace, publishing the framework |
+| [`releasing`](../../.agents/skills/releasing/SKILL.md) | Releasing plugins and the framework: checks, tags, verification, failed runs |
 
 ## Workflow
 

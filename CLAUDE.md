@@ -30,7 +30,8 @@ Operational notes for Claude Code in this repository. AGENTS.md (imported above)
 - [`.agents/skills/agy-pane/SKILL.md`](.agents/skills/agy-pane/SKILL.md): a plugin's Antigravity pane.
 - [`.agents/skills/cross-mod-testing/SKILL.md`](.agents/skills/cross-mod-testing/SKILL.md): tests.
 - [`.agents/skills/mod-scaffolding/SKILL.md`](.agents/skills/mod-scaffolding/SKILL.md): `pnpm new`.
-- [`.agents/skills/plugin-distribution/SKILL.md`](.agents/skills/plugin-distribution/SKILL.md): linking, releases.
+- [`.agents/skills/plugin-distribution/SKILL.md`](.agents/skills/plugin-distribution/SKILL.md): linking, distribution.
+- [`.agents/skills/releasing/SKILL.md`](.agents/skills/releasing/SKILL.md): releases of plugins and the framework.
 - Framework: [`packages/bifrost/AGENTS.md`](packages/bifrost/AGENTS.md) and `packages/bifrost/.agents/skills/`.
 
 ## Permissions
