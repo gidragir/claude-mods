@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>__MOD_NAME__</title>
+  <link rel="stylesheet" href="/pico.css">
+  <script src="/preload.js"></script>
+</head>
+<body>
+  <header>
+    <h1>__MOD_NAME__</h1>
+    <span class="badge accent" id="status">ready</span>
+  </header>
+  <main>
+    <div class="split-view">
+      <aside id="sidebar">
+        <article class="card active">
+          <strong>Overview</strong>
+          <p class="text-muted">__MOD_DESCRIPTION__</p>
+        </article>
+      </aside>
+      <section class="content-pane" id="content">
+        <h2>Welcome to __MOD_NAME__</h2>
+        <p>This sidecar is running in the Antigravity Auxiliary Pane styled with Pico Antigravity CSS.</p>
+        <div class="card">
+          <p><strong>Active Workspaces:</strong></p>
+          <ul id="workspaces-list">
+            <li class="text-muted">Detecting workspaces...</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script type="module">
+    import { initSidecarClient } from '/client.js';
+
+    initSidecarClient({
+      onWorkspaceChange: (uris) => {
+        const list = document.getElementById('workspaces-list');
+        if (!list) return;
+        if (!uris || uris.length === 0) {
+          list.innerHTML = '<li class="text-muted">No workspaces open</li>';
+          return;
+        }
+        list.innerHTML = uris.map(u => `<li><code>${u}</code></li>`).join('');
+      }
+    });
+  </script>
+</body>
+</html>

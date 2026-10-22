@@ -18,12 +18,14 @@ Plugins in this repository follow a tripartite architecture to share core logic 
    - Tested with unit tests in `hooks/*.test.ts`.
    - Node 24 natively imports TypeScript files (`hooks/*.ts`) with type stripping—no build or bundling needed.
 
-2. **Claude Code Adapter (`hooks/register.tsx`)**:
+2. **Claude Code Adapter (`hooks/register.tsx`, `hooks/ui.tsx`)**:
    - Implements the Claude Code plugin contract via `export const register: Register = (on, options) => { ... }`.
    - Integrates with the Claude Code sandbox `$`: `$.fs` maps to `FsLike`, `$.slashCommand.register` adds commands, and `$.ui.render` mounts interactive TUI panes into the terminal.
+   - **TUI UI Architecture**: Avoids heavy terminal UI engines (Ratatui/re-implementations); uses pure functional patterns (`renderMasterDetail`, `renderEmptyState`, `truncate` in `hooks/ui.tsx`) composed on top of native Flexbox primitives (`Box`, `Text`, `Button`, `Input`).
 
 3. **Google Antigravity Adapter (`sidecars/<mod>/`, `skills/`, `rules/`)**:
    - **Sidecar (`sidecars/<mod>/`)**: A lightweight background Node.js HTTP microservice configured by `sidecar.json`. Serves webview HTML into the Antigravity Auxiliary Pane (`SIDECAR_UI_ENTRYPOINT_AUX_PANE`).
+   - **Webview UI Styling**: Uses ultra-lightweight semantic `pico.antigravity.css` mapped directly to Antigravity IDE custom properties (`--background`, `--foreground`, `--accent-color`, `--border-color`). Employs clean semantic HTML (`<header>`, `<main>`, `<aside>`, `<article>`, `<table>`) with zero framework bloat.
    - **Shared Core Import**: `server.mjs` directly imports pure functions from `../../hooks/*.ts` using Node 24 native type stripping.
    - **Server-Side Rendering (SSR)**: Markdown is parsed into sanitized HTML on the server (`markdown.mjs`) with zero npm dependencies.
    - **Agent Skills (`skills/<mod>/SKILL.md`)**: Teaches the agent when and how to navigate or invoke the plugin, including sidecar links (`[Label](sidecar://<id>/)`).
@@ -40,18 +42,24 @@ Plugins in this repository follow a tripartite architecture to share core logic 
 ## Cross-Model Plugin Directory Layout
 
 ```
+packages/ui/                   Shared UI library & assets (source of truth)
+  tui/                         Pure functional TUI patterns (patterns.tsx)
+  web/                         Semantic Pico CSS & webview client SDK
+  server/                      Sidecar server factory & SSR markdown parser
 plugins/<mod>/
   .claude-plugin/plugin.json   Claude Code manifest (name, version, description, author[, types])
   plugin.json                  Antigravity manifest (name, displayName, description, version, suggestedPrompts)
   hooks/hooks.json             { "modules": ["./register.tsx"] } — Claude Code entry
   hooks/register.tsx           export const register: Register = (on, options) => { ... }
+  hooks/ui.tsx                 Vendored functional TUI patterns (synced via pnpm ui:sync)
   hooks/*.ts                   Shared pure core logic (FsLike abstraction, no $, no Node globals)
   hooks/*.test.ts              Unit tests: import { test, expect, mock } from 'claude-code/testing'
   sidecars/<mod>/
     sidecar.json               Antigravity sidecar manifest (command, args, ui_config, views)
     server.mjs                 Node HTTP server, imports ../../hooks/*.ts directly via type stripping
-    markdown.mjs               Zero-dependency SSR markdown renderer
-    ui/index.html              Auxiliary Pane webview interface (communicates via window.sidecar)
+    vendor/                    Vendored sidecar-server.mjs & markdown.mjs (synced via pnpm ui:sync)
+    ui/index.html              Auxiliary Pane webview interface (styled with Pico CSS)
+    ui/vendor/                 Vendored pico.antigravity.css & client.js (synced via pnpm ui:sync)
     test/*.test.mjs            Node test runner tests: import { test } from 'node:test'
   skills/<mod>/
     SKILL.md                   Antigravity agent skill definition with YAML frontmatter
@@ -75,6 +83,15 @@ Create a new mod via `pnpm new <mod> "description"` (template in `templates/mod`
 - Ephemeral rendering state uses `$.state` (survives hot reload); persistent state uses `$.store`. Module-level variables reset on reload.
 - Equip guard hooks (`tool.call`, `prompt.submit`, ...) with `.catch(($, e, next) => next.called ? next(e) : { deny: '...' })`.
 - If a hook does not handle an event itself, it MUST call `next(e)` to preserve other plugins and default engine behavior.
+- **Hooks Worker Watchdog & Sandbox IPC Budget**:
+  - The worker sandbox is monitored by a ~5000ms host heartbeat watchdog. Avoid unbounded sequential IPC loops over `$.fs`.
+  - **Single-Pass Resolution**: Do not discover IDs in one pass and re-scan the filesystem in a second pass. Extract and construct data objects in a single pass.
+  - **Inspect Existing Paths Only**: Never probe combinatorial permutations of non-existent directories. Run a single `$.fs.list(dir)` and filter entries in-memory.
+  - **Bound Traversals by Recency**: Always cap directory searches (e.g. top 10 most recent folders sorted by `mtimeMs` descending).
+  - **Guard Host RPCs**: Wrap host IPC promises (`read($, atom)`, `$.ui.open()`, `learn()`, `$.state.set()`, `$.ui.selection()`) with `.catch()` to prevent unhandled host rejections from terminating the worker process.
+- **Dynamic Configuration**:
+  - Verify `row.value.trim() !== ''` when reading from `$.config.list()` to prevent default empty strings from shadowing fallback options or atoms.
+  - Subscribe to `config.set` to keep session atoms synchronized without requiring a session restart.
 
 ### 2. Antigravity Sidecar Runtime
 - **Process Management**: Runs as a background child process spawned by Antigravity according to `sidecars/<mod>/sidecar.json`.
@@ -96,6 +113,15 @@ Create a new mod via `pnpm new <mod> "description"` (template in `templates/mod`
   - Workspace paths received from `window.sidecar` may arrive as `file:///...` URIs, POSIX paths, or Windows paths with backslashes. Always normalize via `fileURLToPath()` and `resolve()`.
 - **Zero-Dependency SSR**:
   - To prevent client bundle bloat and ensure fast webview rendering, transform markdown to sanitized HTML on the sidecar server using pure regex/string parsers (`markdown.mjs`).
+- **Chat Context & Selection Injection**:
+  - Webviews offering reference inspection should support quoting highlighted text into the active chat prompt.
+  - Standard protocol: emit dual `window.parent.postMessage` events (`add-chat-context` and `insert-prompt`), attempt `window.sidecar.agent?.sendMessage(...)`, and fall back to clipboard writing (`navigator.clipboard.writeText`) with toast feedback.
+  - Constrain floating action buttons within viewport boundaries (`Math.min(window.innerWidth - buttonWidth, ...)`).
+
+### 3. Plugin Isolation & Vendoring Strategy
+- **Self-Contained Distribution**: Plugins installed via Claude Code Marketplace or Antigravity Extensions/Plugins UI are extracted as isolated standalone directories.
+- **No Parent Directory Traversal**: Installed plugins cannot access `../../packages/ui` or other monorepo siblings.
+- **Vendoring via `pnpm ui:sync`**: Shared UI patterns, CSS styles, and sidecar server helpers live in `packages/ui` during authoring, and are synchronized into `plugins/<mod>/hooks/ui.tsx` and `plugins/<mod>/sidecars/<mod>/vendor/` before publishing or local installation.
 
 ## Artifact Reference Standards
 
@@ -135,6 +161,7 @@ In Antigravity conversations, surface interactive sidecar pills to open the Auxi
 | `pnpm dev:unlink:gemini` | Antigravity | Unlink mods and sidecars from `~/.gemini/config/` |
 | `pnpm dev:status` | Both | Show linked mods across Claude Code, Desktop, and Antigravity |
 | `pnpm marketplace` | Claude Code | Rebuild `.claude-plugin/marketplace.json` |
+| `pnpm ui:sync` | Both | Synchronize shared UI toolkit and sidecar server into templates and plugins |
 | `pnpm types:sync` | Claude Code | Update local engine type declarations in `types/engine` |
 
 ### Antigravity Local Linking

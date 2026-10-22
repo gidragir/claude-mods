@@ -1,7 +1,7 @@
 // pnpm new <mod-name> ["one-line description"]
 // Scaffolds plugins/<mod-name>/ from templates/mod and refreshes the marketplace.
 // Linking (dev:link*) stays a separate, explicit step.
-import { cpSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { c, modDir, nameClashes, parseArgs, printClashes, ROOT, renderTemplate, run } from './lib.mjs'
@@ -29,7 +29,13 @@ cpSync(join(ROOT, 'templates', 'mod'), dir, { recursive: true })
 
 const fill = d => {
   for (const e of readdirSync(d)) {
-    const p = join(d, e)
+    let p = join(d, e)
+    if (e.includes('__MOD_NAME__')) {
+      const newName = e.replaceAll('__MOD_NAME__', name)
+      const target = join(d, newName)
+      renameSync(p, target)
+      p = target
+    }
     if (statSync(p).isDirectory()) fill(p)
     else writeFileSync(p, renderTemplate(p, readFileSync(p, 'utf8'), name, description))
   }

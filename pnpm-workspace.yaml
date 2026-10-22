@@ -1,5 +1,6 @@
 packages:
   - plugins/*
+  - packages/*
 
 # Single source of versions for every workspace package: "typescript": "catalog:"
 catalog:

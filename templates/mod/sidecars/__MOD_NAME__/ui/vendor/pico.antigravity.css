@@ -1,0 +1,276 @@
+/**
+ * Pico Antigravity CSS: Minimal, semantic CSS theme adapted for
+ * Antigravity Auxiliary Pane and VS Code Webview panels.
+ * Respects editor CSS variables: --background, --foreground, --accent-color, --border-color.
+ */
+
+:root {
+  --bg: var(--background, #1e1e1e);
+  --fg: var(--foreground, #cccccc);
+  --border: var(--border-color, rgba(128, 128, 128, 0.25));
+  --accent: var(--accent-color, #007acc);
+  --accent-hover: #0088e0;
+  --card-bg: rgba(255, 255, 255, 0.04);
+  --card-hover: rgba(255, 255, 255, 0.08);
+  --card-active: rgba(255, 255, 255, 0.12);
+  --muted: rgba(204, 204, 204, 0.6);
+  --code-bg: rgba(0, 0, 0, 0.3);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --radius: 4px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 12px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Typography & Headings */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0 0 8px 0;
+  font-weight: 600;
+  color: var(--fg);
+}
+h1 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.9;
+}
+h2 {
+  font-size: 13px;
+}
+h3 {
+  font-size: 12px;
+}
+p {
+  margin: 0 0 8px 0;
+}
+small,
+.text-muted {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* Header & Nav */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+/* Layouts */
+main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  gap: 12px;
+}
+
+.split-view {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  gap: 12px;
+  min-height: 0;
+}
+
+aside {
+  flex: 0 0 220px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  padding-right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+section.content-pane {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* Inputs, Buttons & Controls */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--fg);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  outline: none;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+}
+
+button {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+button:hover {
+  background: var(--card-hover);
+}
+
+button.primary {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
+button.primary:hover {
+  background: var(--accent-hover);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Semantic Cards & List Items */
+article,
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+article:hover,
+.card:hover {
+  background: var(--card-hover);
+}
+
+article.active,
+.card.active {
+  background: var(--card-active);
+  border-color: var(--accent);
+}
+
+/* Badges & Status Pills */
+.badge,
+mark {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: var(--radius);
+  background: var(--card-hover);
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+
+.badge.accent {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* Empty States */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--muted);
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+/* Markdown & Code formatting */
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+code {
+  background: var(--code-bg);
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+pre {
+  background: var(--code-bg);
+  padding: 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+pre code {
+  background: transparent;
+  padding: 0;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+th,
+td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+th {
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+tr:hover td {
+  background: var(--card-hover);
+}
